@@ -1,8 +1,16 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { LoaderCircle } from "lucide-react";
 import { buttonStyles } from "@/components/ui/Button";
+import { useAuth } from "@/context/AuthContext";
+import { isFirebaseConfigured, loadFirebase } from "@/lib/firebase";
+import {
+  OAuthFlowError,
+  describeOAuthBackendError,
+  requestProviderIdToken,
+  type OAuthProviderId,
+} from "@/lib/oauth";
 
 function GoogleIcon() {
   return (
@@ -34,22 +42,50 @@ function MicrosoftIcon() {
   );
 }
 
-const PROVIDERS: { id: string; label: string; icon: ReactNode }[] = [
+const PROVIDERS: { id: OAuthProviderId; label: string; icon: ReactNode }[] = [
   { id: "google", label: "Google", icon: <GoogleIcon /> },
   { id: "github", label: "GitHub", icon: <GitHubIcon /> },
   { id: "microsoft", label: "Microsoft", icon: <MicrosoftIcon /> },
 ];
 
-/** Botones OAuth simulados (no redirigen a ningún proveedor real). */
-export function OAuthButtons({ onSelect }: { onSelect: (provider: string) => void }) {
-  const [loading, setLoading] = useState<string | null>(null);
+/**
+ * Acceso con Google, GitHub o Microsoft vía Firebase Authentication.
+ * Obtiene el ID token del proveedor y lo entrega a ms-security, que verifica
+ * la identidad y crea la sesión interna. Se usa tanto en login como en registro.
+ */
+export function OAuthButtons({
+  onSuccess,
+  onError,
+  remember = true,
+  disabled = false,
+}: {
+  /** Sesión creada por el backend. */
+  onSuccess: () => void;
+  /** Mensaje presentable; cadena vacía cuando no hay error que mostrar. */
+  onError: (message: string) => void;
+  remember?: boolean;
+  disabled?: boolean;
+}) {
+  const { loginWithIdToken } = useAuth();
+  const [loading, setLoading] = useState<OAuthProviderId | null>(null);
 
-  const handleClick = (id: string) => {
+  // Precarga el SDK para que la ventana del proveedor se abra dentro del gesto del usuario.
+  useEffect(() => {
+    if (isFirebaseConfigured()) loadFirebase().catch(() => undefined);
+  }, []);
+
+  const handleClick = async (id: OAuthProviderId) => {
     setLoading(id);
-    setTimeout(() => {
+    onError("");
+    try {
+      const idToken = await requestProviderIdToken(id);
+      await loginWithIdToken(idToken, remember);
+      onSuccess();
+    } catch (error) {
+      onError(error instanceof OAuthFlowError ? error.message : describeOAuthBackendError(error));
+    } finally {
       setLoading(null);
-      onSelect(id);
-    }, 700);
+    }
   };
 
   return (
@@ -58,7 +94,7 @@ export function OAuthButtons({ onSelect }: { onSelect: (provider: string) => voi
         <button
           key={p.id}
           type="button"
-          disabled={loading !== null}
+          disabled={disabled || loading !== null}
           onClick={() => handleClick(p.id)}
           aria-label={`Continuar con ${p.label}`}
           className={buttonStyles("secondary", "lg", "w-full")}

@@ -11,6 +11,7 @@ import type { UserDetailResponseDTO } from "@/lib/api/types";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ProfileForm } from "@/components/features/users/ProfileForm";
+import { TwoFactorSettings } from "@/components/features/users/TwoFactorSettings";
 
 /**
  * Perfil del usuario autenticado (teléfono, fecha y fotografía).
@@ -93,6 +94,7 @@ export default function PerfilPage() {
           description={loadError ?? "No pudimos leer tu perfil. Verifica que tu rol tenga permiso de consulta."}
         />
       )}
+      <TwoFactorSettings />
     </>
   );
 }

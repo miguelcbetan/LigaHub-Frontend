@@ -13,7 +13,9 @@ import {
 import { useRouter } from "next/navigation";
 import { authApi } from "@/lib/api/auth";
 import { ApiError, configureHttp } from "@/lib/api/http";
+import type { AuthResponseDTO } from "@/lib/api/types";
 import { decodeJwtPayload } from "@/lib/jwt";
+import { clearPendingChallenge } from "@/lib/twoFactorChallenge";
 
 const STORAGE_KEY = "ligahub-session";
 
@@ -48,7 +50,18 @@ export interface SessionUser {
   photoUrl?: string;
   roleNames: string[];
   permissions: SessionPermission[];
+  /** Segundo factor por correo activo (solo aplica a cuentas LOCAL). */
+  twoFactorEnabled: boolean;
+  authMethod: "LOCAL" | "OAUTH";
 }
+
+/** Resultado del paso 1 del login: sesión iniciada, o segundo factor pendiente (sin sesión). */
+export type LoginResult =
+  | { status: "authenticated" }
+  | { status: "two_factor"; challengeId: string; expiresAt: string };
+
+/** Por qué terminó la sesión: sirve para el aviso en /login. */
+export type SessionEndReason = "expired" | "logout";
 
 interface AuthContextValue {
   user: SessionUser | null;
@@ -56,7 +69,13 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   /** `true` mientras se rehidrata la sesión desde el storage. */
   loading: boolean;
-  login: (email: string, password: string, remember?: boolean) => Promise<void>;
+  /** Motivo por el que se cerró la última sesión (null si no hubo o ya se inició otra). */
+  endReason: SessionEndReason | null;
+  login: (email: string, password: string, remember?: boolean) => Promise<LoginResult>;
+  /** Paso 2 del login con 2FA: valida el código y crea la sesión. */
+  completeTwoFactor: (challengeId: string, code: string, remember?: boolean) => Promise<void>;
+  /** Acceso con proveedor externo: recibe el ID token de Firebase y el backend emite la sesión. */
+  loginWithIdToken: (idToken: string, remember?: boolean) => Promise<void>;
   logout: () => void;
   /** Vuelve a consultar /api/auth/me (foto, nombre, roles y permisos). */
   refreshUser: () => Promise<void>;
@@ -126,6 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<StoredSession | null>(null);
   const [user, setUser] = useState<SessionUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [endReason, setEndReason] = useState<SessionEndReason | null>(null);
 
   // http.ts lee el token por referencia para no re-configurarse en cada render.
   const tokenRef = useRef<string | null>(null);
@@ -134,23 +154,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const persistedRef = useRef(false);
 
   /** Descarta la sesión local sin navegar; RequireAuth se encarga de ir a /login. */
-  const dropSession = useCallback(() => {
+  const dropSession = useCallback((reason: SessionEndReason = "expired") => {
     clearStoredSession();
     tokenRef.current = null;
     setSession(null);
     setUser(null);
+    setEndReason(reason);
   }, []);
 
+  /**
+   * Cierra la sesión también en el servidor (el token queda revocado) y la
+   * descarta aquí aunque esa llamada falle: el usuario siempre sale.
+   */
   const logout = useCallback(() => {
-    dropSession();
-    router.replace("/login");
+    // request() lee el token de forma síncrona antes de enviar, así que aún viaja.
+    if (tokenRef.current) void authApi.logout().catch(() => undefined);
+    clearPendingChallenge();
+    dropSession("logout");
+    router.replace("/login?logout=1");
   }, [dropSession, router]);
 
   // El token dura 15 minutos y no hay refresh: un 401 cierra la sesión.
   useEffect(() => {
     configureHttp({
       getToken: () => tokenRef.current,
-      onUnauthorized: dropSession,
+      onUnauthorized: () => dropSession("expired"),
     });
   }, [dropSession]);
 
@@ -199,10 +227,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         photoUrl: me.photoUrl ?? undefined,
         roleNames: me.roles,
         permissions: me.permissions.map(({ method, url, model }) => ({ method, url, model })),
+        twoFactorEnabled: Boolean(me.twoFactorEnabled),
+        authMethod: me.authMethod ?? "LOCAL",
       };
     } catch (error) {
       if (error instanceof ApiError && error.isUnauthorized) throw error;
-      return { id: stored.userId, name: stored.email, email: stored.email, roleNames: [], permissions: [] };
+      return {
+        id: stored.userId,
+        name: stored.email,
+        email: stored.email,
+        roleNames: [],
+        permissions: [],
+        twoFactorEnabled: false,
+        authMethod: "LOCAL",
+      };
     }
   }, []);
 
@@ -223,6 +261,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const stored = readStoredSession();
     if (!stored || isExpired(stored)) {
       clearStoredSession();
+      // Había una sesión guardada que ya venció: se avisa en /login.
+      if (stored) setEndReason("expired");
       setLoading(false);
       return;
     }
@@ -247,25 +287,64 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [hydrateUser, dropSession]);
 
-  const login = useCallback(
-    async (email: string, password: string, remember = true) => {
-      const response = await authApi.login({ email, password });
+  /** Establece la sesión local con el token que emitió el backend (autenticación completa). */
+  const startSession = useCallback(
+    async (response: AuthResponseDTO, remember: boolean, emailHint = "") => {
+      if (!response.accessToken) throw new ApiError(500, "El servidor no devolvió una sesión.");
       const claims = decodeJwtPayload(response.accessToken);
 
       const stored: StoredSession = {
         accessToken: response.accessToken,
         expiresAt: response.expiresAt,
         userId: claims?.sub ?? "",
-        email: claims?.email ?? email,
+        email: claims?.email ?? emailHint,
       };
 
       tokenRef.current = stored.accessToken;
       persistedRef.current = writeStoredSession(stored, remember);
       setSession(stored);
-      setUser(await hydrateUser(stored));
+      setEndReason(null);
+      clearPendingChallenge();
+      try {
+        setUser(await hydrateUser(stored));
+      } catch (error) {
+        dropSession("expired");
+        throw error;
+      }
       setLoading(false);
     },
-    [hydrateUser],
+    [hydrateUser, dropSession],
+  );
+
+  const login = useCallback(
+    async (email: string, password: string, remember = true): Promise<LoginResult> => {
+      const response = await authApi.login({ email, password });
+
+      // Segundo factor pendiente: credenciales verificadas, pero todavía no hay sesión.
+      if (response.twoFactorRequired && response.challengeId) {
+        return { status: "two_factor", challengeId: response.challengeId, expiresAt: response.expiresAt };
+      }
+
+      await startSession(response, remember, email);
+      return { status: "authenticated" };
+    },
+    [startSession],
+  );
+
+  const completeTwoFactor = useCallback(
+    async (challengeId: string, code: string, remember = true) => {
+      const response = await authApi.verifyTwoFactor({ challengeId, code });
+      await startSession(response, remember);
+    },
+    [startSession],
+  );
+
+  const loginWithIdToken = useCallback(
+    async (idToken: string, remember = true) => {
+      const response = await authApi.oauthLogin(idToken);
+      await startSession(response, remember);
+    },
+    [startSession],
   );
 
   const refreshUser = useCallback(async () => {
@@ -283,11 +362,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       token: session?.accessToken ?? null,
       isAuthenticated: Boolean(session),
       loading,
+      endReason,
       login,
+      completeTwoFactor,
+      loginWithIdToken,
       logout,
       refreshUser,
     }),
-    [user, session, loading, login, logout, refreshUser],
+    [user, session, loading, endReason, login, completeTwoFactor, loginWithIdToken, logout, refreshUser],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
