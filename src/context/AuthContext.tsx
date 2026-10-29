@@ -13,9 +13,17 @@ import {
 import { useRouter } from "next/navigation";
 import { authApi } from "@/lib/api/auth";
 import { ApiError, configureHttp } from "@/lib/api/http";
+import type { AuthResponseDTO } from "@/lib/api/types";
 import { decodeJwtPayload } from "@/lib/jwt";
+import { clearPendingChallenge } from "@/lib/twoFactorChallenge";
 
 const STORAGE_KEY = "ligahub-session";
+
+/** Claves de versiones anteriores del front: nada las lee, así que se purgan para no dejar tokens huérfanos. */
+const LEGACY_KEYS = ["futbol-admin-session"];
+
+/** Cada cuánto se compara el token en memoria con el del storage (detecta ediciones manuales). */
+const TAMPER_CHECK_MS = 1000;
 
 /** Lo que persistimos del login. El backend no tiene refresh token. */
 interface StoredSession {
@@ -42,7 +50,18 @@ export interface SessionUser {
   photoUrl?: string;
   roleNames: string[];
   permissions: SessionPermission[];
+  /** Segundo factor por correo activo (solo aplica a cuentas LOCAL). */
+  twoFactorEnabled: boolean;
+  authMethod: "LOCAL" | "OAUTH";
 }
+
+/** Resultado del paso 1 del login: sesión iniciada, o segundo factor pendiente (sin sesión). */
+export type LoginResult =
+  | { status: "authenticated" }
+  | { status: "two_factor"; challengeId: string; expiresAt: string };
+
+/** Por qué terminó la sesión: sirve para el aviso en /login. */
+export type SessionEndReason = "expired" | "logout";
 
 interface AuthContextValue {
   user: SessionUser | null;
@@ -50,7 +69,13 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   /** `true` mientras se rehidrata la sesión desde el storage. */
   loading: boolean;
-  login: (email: string, password: string, remember?: boolean) => Promise<void>;
+  /** Motivo por el que se cerró la última sesión (null si no hubo o ya se inició otra). */
+  endReason: SessionEndReason | null;
+  login: (email: string, password: string, remember?: boolean) => Promise<LoginResult>;
+  /** Paso 2 del login con 2FA: valida el código y crea la sesión. */
+  completeTwoFactor: (challengeId: string, code: string, remember?: boolean) => Promise<void>;
+  /** Acceso con proveedor externo: recibe el ID token de Firebase y el backend emite la sesión. */
+  loginWithIdToken: (idToken: string, remember?: boolean) => Promise<void>;
   logout: () => void;
   /** Vuelve a consultar /api/auth/me (foto, nombre, roles y permisos). */
   refreshUser: () => Promise<void>;
@@ -76,61 +101,116 @@ function readStoredSession(): StoredSession | null {
   return null;
 }
 
-function writeStoredSession(session: StoredSession, remember: boolean) {
+/** Devuelve `false` si no se pudo persistir (la sesión vive solo en memoria hasta recargar). */
+function writeStoredSession(session: StoredSession, remember: boolean): boolean {
   try {
     const target = remember ? window.localStorage : window.sessionStorage;
     const other = remember ? window.sessionStorage : window.localStorage;
     other.removeItem(STORAGE_KEY);
     target.setItem(STORAGE_KEY, JSON.stringify(session));
+    return true;
   } catch {
-    // Sin storage la sesión vive solo en memoria hasta recargar.
+    return false;
   }
 }
 
 function clearStoredSession() {
   try {
-    window.localStorage.removeItem(STORAGE_KEY);
-    window.sessionStorage.removeItem(STORAGE_KEY);
+    for (const key of [STORAGE_KEY, ...LEGACY_KEYS]) {
+      window.localStorage.removeItem(key);
+      window.sessionStorage.removeItem(key);
+    }
   } catch {
     // Nada que limpiar.
   }
 }
 
-const isExpired = (expiresAt: string) => {
-  const time = new Date(expiresAt).getTime();
-  return Number.isFinite(time) ? time <= Date.now() : false;
-};
+/**
+ * Instante (ms) en que vence la sesión. Se toma el menor entre `expiresAt`
+ * (editable en el storage) y el claim `exp` del propio JWT, para que cambiar
+ * una fecha a mano no alargue la sesión.
+ */
+function expirationTime(session: StoredSession): number {
+  const fromField = new Date(session.expiresAt).getTime();
+  const exp = decodeJwtPayload(session.accessToken)?.exp;
+  const fromToken = typeof exp === "number" ? exp * 1000 : Number.NaN;
+  const candidates = [fromField, fromToken].filter(Number.isFinite);
+  return candidates.length ? Math.min(...candidates) : Number.POSITIVE_INFINITY;
+}
+
+const isExpired = (session: StoredSession) => expirationTime(session) <= Date.now();
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [session, setSession] = useState<StoredSession | null>(null);
   const [user, setUser] = useState<SessionUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [endReason, setEndReason] = useState<SessionEndReason | null>(null);
 
   // http.ts lee el token por referencia para no re-configurarse en cada render.
   const tokenRef = useRef<string | null>(null);
   tokenRef.current = session?.accessToken ?? null;
+  // Solo se compara contra el storage si la sesión llegó a guardarse en él.
+  const persistedRef = useRef(false);
 
-  const logout = useCallback(() => {
+  /** Descarta la sesión local sin navegar; RequireAuth se encarga de ir a /login. */
+  const dropSession = useCallback((reason: SessionEndReason = "expired") => {
     clearStoredSession();
     tokenRef.current = null;
     setSession(null);
     setUser(null);
-    router.replace("/login");
-  }, [router]);
+    setEndReason(reason);
+  }, []);
+
+  /**
+   * Cierra la sesión también en el servidor (el token queda revocado) y la
+   * descarta aquí aunque esa llamada falle: el usuario siempre sale.
+   */
+  const logout = useCallback(() => {
+    // request() lee el token de forma síncrona antes de enviar, así que aún viaja.
+    if (tokenRef.current) void authApi.logout().catch(() => undefined);
+    clearPendingChallenge();
+    dropSession("logout");
+    router.replace("/login?logout=1");
+  }, [dropSession, router]);
 
   // El token dura 15 minutos y no hay refresh: un 401 cierra la sesión.
   useEffect(() => {
     configureHttp({
       getToken: () => tokenRef.current,
-      onUnauthorized: () => {
-        clearStoredSession();
-        tokenRef.current = null;
-        setSession(null);
-        setUser(null);
-      },
+      onUnauthorized: () => dropSession("expired"),
     });
-  }, []);
+  }, [dropSession]);
+
+  // El storage es editable desde DevTools y desde otras pestañas: si el token
+  // guardado deja de coincidir con el de memoria (o desaparece), se cierra la
+  // sesión en vez de seguir operando con un token que el backend ya no avalaría.
+  useEffect(() => {
+    if (!session) return;
+
+    const verify = () => {
+      if (!persistedRef.current) return;
+      const stored = readStoredSession();
+      if (!stored || stored.accessToken !== session.accessToken || isExpired(stored)) dropSession();
+    };
+
+    const interval = window.setInterval(verify, TAMPER_CHECK_MS);
+    window.addEventListener("storage", verify);
+    window.addEventListener("focus", verify);
+    document.addEventListener("visibilitychange", verify);
+
+    const remaining = expirationTime(session) - Date.now();
+    // setTimeout admite hasta ~24.8 días; el token dura 15 minutos.
+    const expiry = Number.isFinite(remaining) ? window.setTimeout(dropSession, Math.max(remaining, 0)) : undefined;
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("storage", verify);
+      window.removeEventListener("focus", verify);
+      document.removeEventListener("visibilitychange", verify);
+      if (expiry !== undefined) window.clearTimeout(expiry);
+    };
+  }, [session, dropSession]);
 
   /**
    * El login solo devuelve el token, así que el usuario se completa con
@@ -147,10 +227,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         photoUrl: me.photoUrl ?? undefined,
         roleNames: me.roles,
         permissions: me.permissions.map(({ method, url, model }) => ({ method, url, model })),
+        twoFactorEnabled: Boolean(me.twoFactorEnabled),
+        authMethod: me.authMethod ?? "LOCAL",
       };
     } catch (error) {
       if (error instanceof ApiError && error.isUnauthorized) throw error;
-      return { id: stored.userId, name: stored.email, email: stored.email, roleNames: [], permissions: [] };
+      return {
+        id: stored.userId,
+        name: stored.email,
+        email: stored.email,
+        roleNames: [],
+        permissions: [],
+        twoFactorEnabled: false,
+        authMethod: "LOCAL",
+      };
     }
   }, []);
 
@@ -158,14 +248,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let active = true;
 
+    // Purga de claves heredadas de versiones previas.
+    try {
+      for (const key of LEGACY_KEYS) {
+        window.localStorage.removeItem(key);
+        window.sessionStorage.removeItem(key);
+      }
+    } catch {
+      // Storage bloqueado.
+    }
+
     const stored = readStoredSession();
-    if (!stored || isExpired(stored.expiresAt)) {
+    if (!stored || isExpired(stored)) {
       clearStoredSession();
+      // Había una sesión guardada que ya venció: se avisa en /login.
+      if (stored) setEndReason("expired");
       setLoading(false);
       return;
     }
 
     tokenRef.current = stored.accessToken;
+    persistedRef.current = true;
     setSession(stored);
 
     hydrateUser(stored)
@@ -173,10 +276,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (active) setUser(hydrated);
       })
       .catch(() => {
-        if (!active) return;
-        clearStoredSession();
-        tokenRef.current = null;
-        setSession(null);
+        if (active) dropSession();
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -185,27 +285,66 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       active = false;
     };
-  }, [hydrateUser]);
+  }, [hydrateUser, dropSession]);
 
-  const login = useCallback(
-    async (email: string, password: string, remember = true) => {
-      const response = await authApi.login({ email, password });
+  /** Establece la sesión local con el token que emitió el backend (autenticación completa). */
+  const startSession = useCallback(
+    async (response: AuthResponseDTO, remember: boolean, emailHint = "") => {
+      if (!response.accessToken) throw new ApiError(500, "El servidor no devolvió una sesión.");
       const claims = decodeJwtPayload(response.accessToken);
 
       const stored: StoredSession = {
         accessToken: response.accessToken,
         expiresAt: response.expiresAt,
         userId: claims?.sub ?? "",
-        email: claims?.email ?? email,
+        email: claims?.email ?? emailHint,
       };
 
       tokenRef.current = stored.accessToken;
-      writeStoredSession(stored, remember);
+      persistedRef.current = writeStoredSession(stored, remember);
       setSession(stored);
-      setUser(await hydrateUser(stored));
+      setEndReason(null);
+      clearPendingChallenge();
+      try {
+        setUser(await hydrateUser(stored));
+      } catch (error) {
+        dropSession("expired");
+        throw error;
+      }
       setLoading(false);
     },
-    [hydrateUser],
+    [hydrateUser, dropSession],
+  );
+
+  const login = useCallback(
+    async (email: string, password: string, remember = true): Promise<LoginResult> => {
+      const response = await authApi.login({ email, password });
+
+      // Segundo factor pendiente: credenciales verificadas, pero todavía no hay sesión.
+      if (response.twoFactorRequired && response.challengeId) {
+        return { status: "two_factor", challengeId: response.challengeId, expiresAt: response.expiresAt };
+      }
+
+      await startSession(response, remember, email);
+      return { status: "authenticated" };
+    },
+    [startSession],
+  );
+
+  const completeTwoFactor = useCallback(
+    async (challengeId: string, code: string, remember = true) => {
+      const response = await authApi.verifyTwoFactor({ challengeId, code });
+      await startSession(response, remember);
+    },
+    [startSession],
+  );
+
+  const loginWithIdToken = useCallback(
+    async (idToken: string, remember = true) => {
+      const response = await authApi.oauthLogin(idToken);
+      await startSession(response, remember);
+    },
+    [startSession],
   );
 
   const refreshUser = useCallback(async () => {
@@ -223,11 +362,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       token: session?.accessToken ?? null,
       isAuthenticated: Boolean(session),
       loading,
+      endReason,
       login,
+      completeTwoFactor,
+      loginWithIdToken,
       logout,
       refreshUser,
     }),
-    [user, session, loading, login, logout, refreshUser],
+    [user, session, loading, endReason, login, completeTwoFactor, loginWithIdToken, logout, refreshUser],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

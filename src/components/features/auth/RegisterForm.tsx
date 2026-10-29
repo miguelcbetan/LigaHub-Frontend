@@ -78,7 +78,11 @@ export function RegisterForm() {
     <>
       <AuthHeader title="Crea tu cuenta" subtitle="Únete al cuerpo técnico digital de tu club en menos de un minuto." />
 
-      <OAuthButtons onSelect={() => router.push("/dashboard")} />
+      <OAuthButtons
+        disabled={loading}
+        onSuccess={() => router.push("/dashboard")}
+        onError={(message) => setErrors(message ? { form: message } : {})}
+      />
       <AuthDivider>o regístrate con tu correo</AuthDivider>
 
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>

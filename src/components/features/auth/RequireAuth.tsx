@@ -12,12 +12,14 @@ import { useAuth } from "@/context/AuthContext";
  * navegador y el middleware de Next no puede leerlo.
  */
 export function RequireAuth({ children }: { children: ReactNode }) {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, endReason } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && !isAuthenticated) router.replace("/login");
-  }, [loading, isAuthenticated, router]);
+    if (loading || isAuthenticated) return;
+    // El aviso de /login depende de cómo terminó la sesión (vencida/revocada o cierre voluntario).
+    router.replace(endReason === "expired" ? "/login?expired=1" : endReason === "logout" ? "/login?logout=1" : "/login");
+  }, [loading, isAuthenticated, endReason, router]);
 
   if (loading || !isAuthenticated) {
     return (

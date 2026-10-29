@@ -10,13 +10,24 @@
 
 // --- Autenticación ---
 
-/** Respuesta de POST /api/auth/login. No incluye usuario ni roles. */
+/**
+ * Respuesta de login, verificación 2FA y acceso OAuth. No incluye usuario ni roles.
+ * Si `twoFactorRequired` es true todavía NO hay sesión: solo viene el desafío.
+ */
 export interface AuthResponseDTO {
-  accessToken: string;
-  /** Siempre "Bearer". */
-  tokenType: string;
-  /** ISO-8601 con zona, ej. "2026-10-06T18:37:31.482913Z". */
+  /** null mientras el segundo factor está pendiente. */
+  accessToken: string | null;
+  /** "Bearer" cuando hay sesión. */
+  tokenType: string | null;
+  /** ISO-8601 con zona: vencimiento de la sesión o del desafío 2FA. */
   expiresAt: string;
+  twoFactorRequired: boolean;
+  challengeId: string | null;
+}
+
+export interface TwoFactorVerifyRequestDTO {
+  challengeId: string;
+  code: string;
 }
 
 export interface LoginRequestDTO {
@@ -43,6 +54,9 @@ export interface CurrentUserResponseDTO {
   photoUrl: string | null;
   roles: string[];
   permissions: PermissionResponseDTO[];
+  twoFactorEnabled: boolean;
+  /** LOCAL (correo y contraseña) u OAUTH (proveedor externo). */
+  authMethod: "LOCAL" | "OAUTH";
 }
 
 // --- Usuarios ---
