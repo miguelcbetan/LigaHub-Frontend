@@ -35,6 +35,10 @@ export interface LoginRequestDTO {
   password: string;
 }
 
+export interface PasswordRecoveryResponseDTO {
+  message: string;
+}
+
 /** Claims que emite JwtService. `sub` es el id numérico del usuario en string. */
 export interface JwtPayload {
   iss?: string;

@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { ArrowLeft, CircleCheck, KeyRound, Mail, MailCheck } from "lucide-react";
+import { ArrowLeft, CircleCheck, KeyRound, Mail, MailCheck, TriangleAlert } from "lucide-react";
 import { Input } from "@/components/ui/Field";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 import { PasswordStrength } from "@/components/ui/PasswordStrength";
 import { Button, LinkButton } from "@/components/ui/Button";
-import { getPasswordStrength } from "@/utils/password";
+import { ApiError, describeError } from "@/lib/api/http";
+import { authApi } from "@/lib/api/auth";
+import { isPasswordValid } from "@/utils/password";
 import { cn } from "@/utils/cn";
 import { AuthHeader } from "./OAuthButtons";
 
@@ -38,36 +40,101 @@ function Stepper({ current }: { current: Step }) {
   );
 }
 
-/** Recuperación de contraseña en pasos (simulado). */
+function isInvalidRecoveryToken(error: unknown): boolean {
+  const detail = error instanceof ApiError
+    ? `${error.errorCase ?? ""} ${error.message}`
+    : error instanceof Error
+      ? error.message
+      : "";
+  return /token|expir|enlace|link/i.test(detail)
+    || (error instanceof ApiError && [401, 410].includes(error.status));
+}
+
+/** Recuperación de contraseña mediante los endpoints públicos de ms-security. */
 export function RecoverFlow() {
   const [step, setStep] = useState<Step>("email");
+  const [token, setToken] = useState("");
   const [email, setEmail] = useState("");
+  const [sentMessage, setSentMessage] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [error, setError] = useState<string>();
+  const [emailError, setEmailError] = useState<string>();
+  const [resetError, setResetError] = useState<string>();
+  const [linkExpired, setLinkExpired] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const simulate = (next: Step) => {
+  useEffect(() => {
+    const urlToken = new URLSearchParams(window.location.search).get("token")?.trim();
+    if (urlToken) {
+      setToken(urlToken);
+      setStep("reset");
+    }
+  }, []);
+
+  const requestRecovery = async () => {
+    setEmailError(undefined);
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) {
+      setEmailError("Ingresa un correo válido.");
+      return;
+    }
+
     setLoading(true);
-    setTimeout(() => {
+    try {
+      const response = await authApi.requestPasswordRecovery(email.trim());
+      if (!response.message?.trim()) {
+        throw new Error("El servidor no devolvió el mensaje de recuperación.");
+      }
+      setSentMessage(response.message);
+      setStep("sent");
+    } catch (error) {
+      setEmailError(describeError(error, "No se pudo solicitar la recuperación. Inténtalo de nuevo."));
+    } finally {
       setLoading(false);
-      setStep(next);
-    }, 800);
+    }
   };
 
-  const submitEmail = (e: FormEvent) => {
-    e.preventDefault();
-    if (!/^\S+@\S+\.\S+$/.test(email)) return setError("Ingresa un correo válido.");
-    setError(undefined);
-    simulate("sent");
+  const submitEmail = (event: FormEvent) => {
+    event.preventDefault();
+    void requestRecovery();
   };
 
-  const submitReset = (e: FormEvent) => {
-    e.preventDefault();
-    if (getPasswordStrength(password).score < 3) return setError("La nueva contraseña es muy débil.");
-    if (password !== confirm) return setError("Las contraseñas no coinciden.");
-    setError(undefined);
-    simulate("done");
+  const submitReset = async (event: FormEvent) => {
+    event.preventDefault();
+    setResetError(undefined);
+    setLinkExpired(false);
+
+    if (!isPasswordValid(password)) {
+      setResetError("La contraseña debe tener entre 8 y 72 caracteres, incluir mayúscula, minúscula, número y uno de estos símbolos: @$!%*?&, sin espacios.");
+      return;
+    }
+    if (password !== confirm) {
+      setResetError("Las contraseñas no coinciden.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await authApi.resetPassword(token, password);
+      setStep("done");
+    } catch (error) {
+      if (isInvalidRecoveryToken(error)) {
+        setLinkExpired(true);
+      } else {
+        setResetError(describeError(error, "No se pudo restablecer la contraseña. Inténtalo de nuevo."));
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const requestAnotherLink = () => {
+    setToken("");
+    setPassword("");
+    setConfirm("");
+    setResetError(undefined);
+    setLinkExpired(false);
+    setEmailError(undefined);
+    setStep("email");
   };
 
   return (
@@ -88,8 +155,8 @@ export function RecoverFlow() {
               placeholder="capitan@futbolapp.co"
               icon={<Mail />}
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              error={error}
+              onChange={(event) => setEmail(event.target.value)}
+              error={emailError}
               autoFocus
             />
             <Button type="submit" size="lg" className="w-full" loading={loading}>
@@ -104,17 +171,16 @@ export function RecoverFlow() {
           <AuthHeader
             icon={<MailCheck />}
             title="Revisa tu bandeja"
-            subtitle={`Si ${email} está registrado, recibirás un enlace válido por 15 minutos.`}
+            subtitle={sentMessage}
           />
           <div className="space-y-3">
-            <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-4 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-400">
-              <p className="font-medium text-zinc-800 dark:text-zinc-200">Modo demostración</p>
-              <p className="mt-1">No se envía ningún correo. Simula que abriste el enlace:</p>
-            </div>
-            <Button size="lg" className="w-full" onClick={() => setStep("reset")}>
-              Simular clic en el enlace del correo
-            </Button>
-            <Button variant="ghost" className="w-full" onClick={() => simulate("sent")} loading={loading}>
+            {emailError && (
+              <div role="alert" className="flex items-center gap-2 rounded-lg border border-co-red/30 bg-co-red/10 px-3 py-2.5 text-sm text-co-red">
+                <TriangleAlert className="size-4 shrink-0" />
+                {emailError}
+              </div>
+            )}
+            <Button size="lg" className="w-full" onClick={() => void requestRecovery()} loading={loading}>
               Reenviar correo
             </Button>
           </div>
@@ -125,29 +191,44 @@ export function RecoverFlow() {
         <>
           <AuthHeader
             icon={<KeyRound />}
-            title="Ingresa tu nueva contraseña"
-            subtitle="Elige una contraseña fuerte que no hayas usado antes."
+            title={linkExpired ? "El enlace ya no es válido" : "Ingresa tu nueva contraseña"}
+            subtitle={
+              linkExpired
+                ? "El enlace de recuperación es inválido o expiró. Solicita uno nuevo para continuar."
+                : "Elige una contraseña fuerte que no hayas usado antes."
+            }
           />
-          <form onSubmit={submitReset} className="space-y-4" noValidate>
-            <PasswordInput
-              label="Nueva contraseña"
-              autoComplete="new-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoFocus
-            />
-            <PasswordStrength password={password} />
-            <PasswordInput
-              label="Confirmar nueva contraseña"
-              autoComplete="new-password"
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              error={error}
-            />
-            <Button type="submit" size="lg" className="w-full" loading={loading}>
-              Restablecer contraseña
+          {linkExpired ? (
+            <Button size="lg" className="w-full" onClick={requestAnotherLink}>
+              Solicitar otro enlace
             </Button>
-          </form>
+          ) : (
+            <form onSubmit={submitReset} className="space-y-4" noValidate>
+              {resetError && (
+                <div role="alert" className="flex items-center gap-2 rounded-lg border border-co-red/30 bg-co-red/10 px-3 py-2.5 text-sm text-co-red">
+                  <TriangleAlert className="size-4 shrink-0" />
+                  {resetError}
+                </div>
+              )}
+              <PasswordInput
+                label="Nueva contraseña"
+                autoComplete="new-password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                autoFocus
+              />
+              <PasswordStrength password={password} />
+              <PasswordInput
+                label="Confirmar nueva contraseña"
+                autoComplete="new-password"
+                value={confirm}
+                onChange={(event) => setConfirm(event.target.value)}
+              />
+              <Button type="submit" size="lg" className="w-full" loading={loading}>
+                Restablecer contraseña
+              </Button>
+            </form>
+          )}
         </>
       )}
 
