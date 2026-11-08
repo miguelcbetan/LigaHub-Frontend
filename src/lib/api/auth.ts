@@ -4,6 +4,7 @@ import type {
   CreateUserDTO,
   CurrentUserResponseDTO,
   LoginRequestDTO,
+  PasswordRecoveryResponseDTO,
   TwoFactorVerifyRequestDTO,
   UserResponseDTO,
 } from "./types";
@@ -34,6 +35,24 @@ export const authApi = {
     return request<AuthResponseDTO>("/api/auth/2fa/verify", {
       method: "POST",
       body: payload,
+      skipAuth: true,
+    });
+  },
+
+  /** POST /api/auth/password-recovery — solicita un enlace sin revelar si el correo existe. */
+  requestPasswordRecovery(email: string) {
+    return request<PasswordRecoveryResponseDTO>("/api/auth/password-recovery", {
+      method: "POST",
+      body: { email },
+      skipAuth: true,
+    });
+  },
+
+  /** POST /api/auth/password-reset — cambia la contraseña usando el token del enlace. */
+  resetPassword(token: string, password: string) {
+    return request<void>("/api/auth/password-reset", {
+      method: "POST",
+      body: { token, password },
       skipAuth: true,
     });
   },

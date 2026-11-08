@@ -63,7 +63,8 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
               ))}
             </ul>
           </div>
-          <p className="text-xs text-zinc-500">© 2026 LigaHub · Hecho con pasión cafetera 🇨🇴</p>
+          {/* Espaciador: mantiene el titular centrado entre el logo y el borde inferior. */}
+          <div aria-hidden />
         </div>
       </aside>
 

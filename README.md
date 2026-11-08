@@ -40,7 +40,7 @@ Lo más importante: **la interfaz se adapta a los permisos reales del usuario au
 
 | Módulo | Qué permite |
 | --- | --- |
-| **Autenticación** | Inicio de sesión con JWT, registro público de usuarios, cierre de sesión automático al expirar el token. |
+| **Autenticación** | Inicio de sesión con JWT, recuperación y restablecimiento de contraseña, registro público y cierre de sesión automático al expirar el token. |
 | **Camerino (Dashboard)** | Resumen con totales de usuarios, roles y permisos, cobertura de permisos por rol y últimos usuarios registrados. |
 | **Usuarios** | Listado con búsqueda, alta, edición, eliminación, activar/desactivar, detalle con perfil y asignación de roles. |
 | **Roles** | CRUD de roles, detalle de cada rol y administración de los usuarios que lo tienen. |
@@ -115,7 +115,7 @@ Cada archivo de `src/lib/api/` corresponde a un controlador de `ms-security`.
 
 | Módulo del frontend | Recurso | Operaciones |
 | --- | --- | --- |
-| `auth.ts` | `/api/auth/login`, `/api/auth/me`, `POST /api/users` (registro) | Login, identidad actual, registro público |
+| `auth.ts` | `/api/auth/login`, `/api/auth/me`, `/api/auth/password-recovery`, `/api/auth/password-reset`, `POST /api/users` (registro) | Login, identidad, recuperación de contraseña y registro público |
 | `users.ts` | `/api/users` | CRUD, cambio de estado, detalle con perfil, sesiones y roles |
 | `profiles.ts` | `/api/profile/me`, `/api/users/{id}/profile` | Consultar, crear, actualizar y eliminar perfil |
 | `roles.ts` | `/api/roles` | CRUD y detalle con permisos |
@@ -207,6 +207,7 @@ Las variables `NEXT_PUBLIC_*` se incrustan en el build: reinicia `npm run dev` o
 | `npm run dev` | Servidor de desarrollo con recarga en caliente. |
 | `npm run build` | Compila la aplicación para producción. |
 | `npm run start` | Sirve la versión de producción generada con `build`. |
+| `npm test` | Ejecuta las pruebas de recuperación de contraseña y validación. |
 
 ## Solución de problemas
 
