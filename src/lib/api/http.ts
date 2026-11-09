@@ -8,7 +8,9 @@
 
 import type { ApplicationErrorBody } from "./types";
 
-const BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8181").replace(/\/+$/, "");
+const BASE_URL = (
+  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8181"
+).replace(/\/+$/, "");
 
 /** Error normalizado de la API. `fieldErrors` solo viene en validaciones (400). */
 export class ApiError extends Error {
@@ -40,7 +42,10 @@ export class ApiError extends Error {
 }
 
 /** Mensaje presentable de cualquier fallo, venga de la API o de JS. */
-export function describeError(error: unknown, fallback = "Ocurrió un error inesperado."): string {
+export function describeError(
+  error: unknown,
+  fallback = "Ocurrió un error inesperado.",
+): string {
   if (error instanceof ApiError) return error.message;
   if (error instanceof Error && error.message) return error.message;
   return fallback;
@@ -52,9 +57,21 @@ type TokenProvider = () => string | null;
 let getToken: TokenProvider = () => null;
 let onUnauthorized: (() => void) | null = null;
 
-export function configureHttp(options: { getToken: TokenProvider; onUnauthorized: () => void }) {
+export function configureHttp(options: {
+  getToken: TokenProvider;
+  onUnauthorized: () => void;
+}) {
   getToken = options.getToken;
   onUnauthorized = options.onUnauthorized;
+}
+
+export function getAuthorizationHeaders(): Record<string, string> {
+  const token = getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+export function handleUnauthorized() {
+  onUnauthorized?.();
 }
 
 const MESSAGE_BY_STATUS: Record<number, string> = {
@@ -72,7 +89,9 @@ const MESSAGE_BY_STATUS: Record<number, string> = {
  * filtro de seguridad.
  */
 async function toApiError(response: Response): Promise<ApiError> {
-  const fallback = MESSAGE_BY_STATUS[response.status] ?? `Error ${response.status} al contactar el servidor.`;
+  const fallback =
+    MESSAGE_BY_STATUS[response.status] ??
+    `Error ${response.status} al contactar el servidor.`;
 
   let body: unknown;
   try {
@@ -90,7 +109,9 @@ async function toApiError(response: Response): Promise<ApiError> {
 
   if (typeof record.errorCase === "string") {
     const { errorCase, message } = record as unknown as ApplicationErrorBody;
-    return new ApiError(response.status, message?.trim() || fallback, { errorCase });
+    return new ApiError(response.status, message?.trim() || fallback, {
+      errorCase,
+    });
   }
 
   // Validación: mapa plano campo → mensaje.
@@ -112,16 +133,17 @@ interface RequestOptions {
   skipAuth?: boolean;
 }
 
-export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+export async function request<T>(
+  path: string,
+  options: RequestOptions = {},
+): Promise<T> {
   const { method = "GET", body, skipAuth = false } = options;
 
   const headers: Record<string, string> = {};
   if (body !== undefined) headers["Content-Type"] = "application/json";
 
   if (!skipAuth) {
-    const token = getToken();
-    // tokenType del backend es siempre "Bearer"; el filtro exige el prefijo.
-    if (token) headers.Authorization = `Bearer ${token}`;
+    Object.assign(headers, getAuthorizationHeaders());
   }
 
   let response: Response;
@@ -132,12 +154,15 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
-    throw new ApiError(0, "No se pudo contactar el servidor. Verifica que ms-security esté arriba en el puerto 8181.");
+    throw new ApiError(
+      0,
+      "No se pudo contactar el servidor. Verifica que ms-security esté arriba en el puerto 8181.",
+    );
   }
 
   if (!response.ok) {
     const error = await toApiError(response);
-    if (error.isUnauthorized && !skipAuth) onUnauthorized?.();
+    if (error.isUnauthorized && !skipAuth) handleUnauthorized();
     throw error;
   }
 

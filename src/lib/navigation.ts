@@ -4,6 +4,7 @@ import {
   KeyRound,
   LayoutDashboard,
   ShieldCheck,
+  Trophy,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -31,14 +32,40 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     title: "Seguridad",
     items: [
-      { href: "/usuarios", label: "Usuarios", icon: Users, requires: (a) => a.hasModule("m-usuarios") },
-      { href: "/roles", label: "Roles", icon: ShieldCheck, requires: (a) => a.hasModule("m-roles") },
-      { href: "/permisos", label: "Permisos", icon: KeyRound, requires: (a) => a.hasModule("m-permisos") },
+      {
+        href: "/usuarios",
+        label: "Usuarios",
+        icon: Users,
+        requires: (a) => a.hasModule("m-usuarios"),
+      },
+      {
+        href: "/roles",
+        label: "Roles",
+        icon: ShieldCheck,
+        requires: (a) => a.hasModule("m-roles"),
+      },
+      {
+        href: "/permisos",
+        label: "Permisos",
+        icon: KeyRound,
+        requires: (a) => a.hasModule("m-permisos"),
+      },
       {
         href: "/matriz",
         label: "Matriz de permisos",
         icon: Grid3x3,
         requires: (a) => a.hasModule("m-roles-permisos"),
+      },
+    ],
+  },
+  {
+    title: "Business",
+    items: [
+      {
+        href: "/torneos",
+        label: "Torneos",
+        icon: Trophy,
+        requires: (access) => access.hasPermission("/torneos", "GET"),
       },
     ],
   },
@@ -56,7 +83,8 @@ export const NAV_SECTIONS: NavSection[] = [
   },
 ];
 
-const isAllowed = (item: NavItem, access: Access) => !item.requires || item.requires(access);
+const isAllowed = (item: NavItem, access: Access) =>
+  !item.requires || item.requires(access);
 
 /** Secciones con solo los ítems permitidos; las que quedan vacías se descartan. */
 export function visibleNavSections(access: Access): NavSection[] {
