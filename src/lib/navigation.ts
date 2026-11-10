@@ -1,8 +1,11 @@
 import {
   CircleUserRound,
+  ClipboardList,
   Grid3x3,
   KeyRound,
   LayoutDashboard,
+  MapPin,
+  Medal,
   ShieldCheck,
   Trophy,
   Users,
@@ -66,6 +69,25 @@ export const NAV_SECTIONS: NavSection[] = [
         label: "Torneos",
         icon: Trophy,
         requires: (access) => access.hasPermission("/torneos", "GET"),
+      },
+      {
+        href: "/inscripciones",
+        label: "Inscripciones",
+        icon: ClipboardList,
+        requires: (access) => access.hasPermission("/inscripciones", "GET"),
+      },
+      {
+        href: "/escenarios-torneo",
+        label: "Escenarios de torneo",
+        icon: MapPin,
+        requires: (access) =>
+          access.hasPermission("/escenarios-torneo", "GET"),
+      },
+      {
+        href: "/fases-finales",
+        label: "Fases finales",
+        icon: Medal,
+        requires: (access) => access.hasPermission("/fases", "GET"),
       },
     ],
   },

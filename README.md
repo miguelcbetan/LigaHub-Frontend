@@ -4,7 +4,7 @@
 
 # LigaHub — Frontend
 
-**Panel de administración de seguridad (usuarios, roles, permisos y matriz de acceso) conectado en tiempo real al microservicio `ms-security`.**
+**Panel de administración de LigaHub: seguridad (usuarios, roles, permisos y matriz de acceso) conectada a `ms-security`, y torneos (torneos, inscripciones, escenarios de torneo y fases finales) conectados a `ms_business`.**
 
 ![Next.js](https://img.shields.io/badge/Next.js-15-000000?logo=nextdotjs&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
@@ -24,6 +24,7 @@
 - [Tecnologías](#tecnologías)
 - [Arquitectura y funcionamiento](#arquitectura-y-funcionamiento)
 - [Integración con el backend](#integración-con-el-backend)
+- [Módulos de Business (torneos)](#módulos-de-business-torneos)
 - [Estructura del proyecto](#estructura-del-proyecto)
 - [Puesta en marcha](#puesta-en-marcha)
 - [Variables de entorno](#variables-de-entorno)
@@ -47,6 +48,10 @@ Lo más importante: **la interfaz se adapta a los permisos reales del usuario au
 | **Permisos** | CRUD de permisos (URL + método HTTP + módulo) con detalle y badges por método. |
 | **Matriz de permisos** | Edición visual de qué permisos tiene cada rol; solo se envían al servidor los cambios (diff). |
 | **Mi perfil** | Edición de teléfono y fecha de nacimiento del usuario autenticado. |
+| **Torneos** | CRUD de torneos en `ms_business`. |
+| **Inscripciones** | CRUD de inscripciones de equipos; el torneo se elige en una lista desplegable. |
+| **Escenarios de torneo** | CRUD de asignaciones de escenarios a torneos; el torneo se elige en una lista desplegable. |
+| **Fases finales** | CRUD de fases de tipo FINAL (el tipo es fijo); el torneo se elige en una lista desplegable. |
 | **Experiencia** | Modo claro/oscuro, diseño responsive, notificaciones (toasts), diálogos de confirmación y estados vacíos/de carga. |
 
 ## Tecnologías
@@ -126,6 +131,46 @@ Cada archivo de `src/lib/api/` corresponde a un controlador de `ms-security`.
 
 `src/lib/api/adapters.ts` traduce los DTOs del backend a los tipos que usa la interfaz (ids numéricos ↔ ids de UI, módulos derivados de los permisos, etc.).
 
+## Módulos de Business (torneos)
+
+Los apartados de la sección **Business** del menú consumen el microservicio `ms_business` (NestJS, `:3030`).
+
+### Cómo se comunican
+
+```text
+Navegador ──► /api/business/*  (rutas de Next.js en este mismo frontend)
+                 │  reenvía método, cuerpo y Authorization: Bearer <token>
+                 ▼
+          ms_business (:3030) ──► ms_security valida token y permiso
+```
+
+El navegador no llama directamente a `ms_business`: pasa por las rutas proxy de `src/app/api/business/`, que lo reenvían a `BUSINESS_API_BASE_URL` (ver `src/lib/server/business-proxy.ts`). El token es el mismo que emite `ms-security`.
+
+### Apartados
+
+| Apartado | Ruta | Cliente | Recurso en `ms_business` |
+| --- | --- | --- | --- |
+| Torneos | `/torneos` | `business-torneos.ts` | `/torneos` |
+| Inscripciones | `/inscripciones` | `business-inscripciones.ts` | `/inscripciones` |
+| Escenarios de torneo | `/escenarios-torneo` | `business-escenarios-torneo.ts` | `/escenarios-torneo` |
+| Fases finales | `/fases-finales` | `business-fases-finales.ts` | `/fases?tipo=FINAL`, `/fases/{id}` |
+
+- En **inscripciones**, **escenarios de torneo** y **fases finales** el torneo se elige en una lista desplegable con los torneos existentes. `equipo_id` y `escenario_id` se escriben a mano como UUID, porque sus microservicios no forman parte de este alcance.
+- En **fases finales** no se elige el tipo: al crear siempre se envía `tipo: "FINAL"`, y la lista solo trae fases finales.
+
+### Permisos necesarios
+
+El menú y los botones se muestran según los permisos del usuario. Aun así, la protección real la hace `ms_business`, que valida cada petición contra `ms-security`.
+
+| Apartado | Ver | Crear | Editar | Eliminar |
+| --- | --- | --- | --- | --- |
+| Torneos | `GET /torneos` | `POST /torneos` | `PATCH /torneos/{id}` | `DELETE /torneos/{id}` |
+| Inscripciones | `GET /inscripciones` | `POST /inscripciones` | `PATCH /inscripciones/{id}` | `DELETE /inscripciones/{id}` |
+| Escenarios de torneo | `GET /escenarios-torneo` | `POST /escenarios-torneo` | `PATCH /escenarios-torneo/{id}` | `DELETE /escenarios-torneo/{id}` |
+| Fases finales | `GET /fases` | `POST /fases` | `PATCH /fases/{id}` | `DELETE /fases/{id}` |
+
+Los formularios con lista de torneos también necesitan `GET /torneos`; sin él, la lista muestra "No se pudieron cargar los torneos". El rol `ADMIN` ya tiene todos estos permisos.
+
 > **Requisitos de contraseña** (validados también en el cliente para evitar un `400`): entre 8 y 72 caracteres, sin espacios, con mayúscula, minúscula, número y uno de `@$!%*?&`.
 
 ## Estructura del proyecto
@@ -137,12 +182,15 @@ frontend/
    ├─ app/
    │  ├─ (auth)/                # login · registro · recuperar · verificar-2fa
    │  ├─ (dashboard)/           # dashboard · usuarios · roles · permisos · matriz · perfil
+   │  │                         # torneos · inscripciones · escenarios-torneo · fases-finales
+   │  ├─ api/business/          # Rutas proxy hacia ms_business
    │  ├─ layout.tsx             # Layout raíz y proveedores globales
    │  └─ globals.css            # Tema y tokens de diseño
    ├─ components/
    │  ├─ ui/                    # Sistema de diseño: Button, Modal, DataTable, Field…
    │  ├─ layout/                # AppShell, Sidebar, Topbar, ThemeToggle, Logo
-   │  └─ features/              # Componentes por dominio: auth, users, roles, permissions, matrix
+   │  └─ features/              # Componentes por dominio: auth, users, roles, permissions, matrix,
+   │                            # torneos, inscripciones, escenarios-torneo, fases-finales
    ├─ context/                  # AuthContext · DataContext · ThemeContext · ToastContext
    ├─ hooks/                    # useDisclosure · usePermissionMatrix
    ├─ lib/
@@ -198,6 +246,8 @@ npm run start
 | --- | --- | --- |
 | `NEXT_PUBLIC_API_BASE_URL` | `http://localhost:8181` | URL base de `ms-security`. Si cambias el puerto o el host del backend, actualiza también `security.cors.allowed-origins` en su configuración. |
 
+| `BUSINESS_API_BASE_URL` | `http://localhost:3030` | URL base de `ms_business`. La usan solo las rutas proxy `/api/business/*` en el servidor de Next, no el navegador. |
+
 Las variables `NEXT_PUBLIC_*` se incrustan en el build: reinicia `npm run dev` o vuelve a ejecutar `npm run build` tras modificarlas.
 
 ## Scripts disponibles
@@ -207,7 +257,7 @@ Las variables `NEXT_PUBLIC_*` se incrustan en el build: reinicia `npm run dev` o
 | `npm run dev` | Servidor de desarrollo con recarga en caliente. |
 | `npm run build` | Compila la aplicación para producción. |
 | `npm run start` | Sirve la versión de producción generada con `build`. |
-| `npm test` | Ejecuta las pruebas de recuperación de contraseña y validación. |
+| `npm test` | Ejecuta las pruebas (Vitest): autenticación, recuperación de contraseña, clientes de Business y formularios. |
 
 ## Solución de problemas
 
@@ -217,6 +267,9 @@ Las variables `NEXT_PUBLIC_*` se incrustan en el build: reinicia `npm run dev` o
 | Error de CORS en la consola | El origen del frontend no está permitido. | Ajusta `security.cors.allowed-origins` en el backend. |
 | Aparece "Aún estás en el vestuario" | El usuario no tiene roles o sus roles no tienen permisos. | Asigna un rol con permisos desde un usuario administrador. |
 | Se cierra la sesión sola | El token expiró (≈15 min) o fue modificado en el storage. | Vuelve a iniciar sesión. |
+| Error `502` en las pantallas de Business | `ms_business` no está en ejecución o usa otro puerto. | Inicia `ms_business` y revisa `BUSINESS_API_BASE_URL`. |
+| Error `503` en las pantallas de Business | `ms_business` no puede consultar a `ms-security`. | Verifica que `ms-security` esté activo y que `MS_SECURITY` esté configurada en `ms_business`. |
+| "No se pudieron cargar los torneos" en un formulario | El usuario no tiene `GET /torneos`. | Asígnale ese permiso a su rol desde la matriz. |
 | Error `400` al crear usuario | La contraseña no cumple el patrón requerido. | Usa 8–72 caracteres con mayúscula, minúscula, número y `@$!%*?&`. |
 
 ---
