@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye, Pencil, Power, PowerOff, Shield, Trash2 } from "lucide-react";
+import { Eye, Pencil, Power, PowerOff, Shield, Trash2, Users } from "lucide-react";
 import type { EquipoDTO } from "@/lib/api/business-equipos";
 import { Badge } from "@/components/ui/Badge";
 import { DataTable, type Column } from "@/components/ui/DataTable";
@@ -11,7 +11,9 @@ interface EquiposTableProps {
   canView: boolean;
   canEdit: boolean;
   canDelete: boolean;
+  canViewPlantilla: boolean;
   onView: (equipo: EquipoDTO) => void;
+  onViewPlantilla: (equipo: EquipoDTO) => void;
   onEdit: (equipo: EquipoDTO) => void;
   onToggleActivo: (equipo: EquipoDTO) => void;
   onDelete: (equipo: EquipoDTO) => void;
@@ -22,7 +24,9 @@ export function EquiposTable({
   canView,
   canEdit,
   canDelete,
+  canViewPlantilla,
   onView,
+  onViewPlantilla,
   onEdit,
   onToggleActivo,
   onDelete,
@@ -51,7 +55,7 @@ export function EquiposTable({
         </Badge>
       ),
     },
-    ...(canView || canEdit || canDelete
+    ...(canView || canViewPlantilla || canEdit || canDelete
       ? [
           {
             key: "actions",
@@ -62,6 +66,15 @@ export function EquiposTable({
                 {canView && (
                   <IconButton label="Ver detalle del equipo" onClick={() => onView(equipo)}>
                     <Eye />
+                  </IconButton>
+                )}
+                {canViewPlantilla && (
+                  <IconButton
+                    label="Plantilla del equipo"
+                    tone="blue"
+                    onClick={() => onViewPlantilla(equipo)}
+                  >
+                    <Users />
                   </IconButton>
                 )}
                 {canEdit && (

@@ -62,6 +62,7 @@ describe("business teams API", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await businessEquiposDeportesApi.findByEquipo("e-1");
+    await businessEquiposDeportesApi.findByDeporte("d-1");
     await businessEquiposDeportesApi.create("e-1", "d-1");
     await businessEquiposDeportesApi.remove("ed-1");
 
@@ -69,6 +70,7 @@ describe("business teams API", () => {
       fetchMock.mock.calls.map(([url, init]) => [url, init.method, init.body]),
     ).toEqual([
       ["/api/business/equipos-deportes?equipo_id=e-1", "GET", undefined],
+      ["/api/business/equipos-deportes?deporte_id=d-1", "GET", undefined],
       [
         "/api/business/equipos-deportes",
         "POST",

@@ -1,6 +1,6 @@
 "use client";
 
-import { Dumbbell, Pencil, Trash2 } from "lucide-react";
+import { Dumbbell, Pencil, Shield, Trash2 } from "lucide-react";
 import type { DeporteDTO } from "@/lib/api/business-deportes";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import { IconButton } from "@/components/ui/IconButton";
@@ -8,8 +8,10 @@ import { IconButton } from "@/components/ui/IconButton";
 interface DeportesTableProps {
   deportes: DeporteDTO[];
   nombres: Map<string, string>;
+  canViewEquipos: boolean;
   canEdit: boolean;
   canDelete: boolean;
+  onViewEquipos: (deporte: DeporteDTO) => void;
   onEdit: (deporte: DeporteDTO) => void;
   onDelete: (deporte: DeporteDTO) => void;
 }
@@ -17,8 +19,10 @@ interface DeportesTableProps {
 export function DeportesTable({
   deportes,
   nombres,
+  canViewEquipos,
   canEdit,
   canDelete,
+  onViewEquipos,
   onEdit,
   onDelete,
 }: DeportesTableProps) {
@@ -59,7 +63,7 @@ export function DeportesTable({
         </span>
       ),
     },
-    ...(canEdit || canDelete
+    ...(canViewEquipos || canEdit || canDelete
       ? [
           {
             key: "actions",
@@ -67,6 +71,14 @@ export function DeportesTable({
             className: "text-right",
             cell: (deporte) => (
               <div className="flex justify-end gap-0.5">
+                {canViewEquipos && (
+                  <IconButton
+                    label="Ver equipos del deporte"
+                    onClick={() => onViewEquipos(deporte)}
+                  >
+                    <Shield />
+                  </IconButton>
+                )}
                 {canEdit && (
                   <IconButton
                     label="Editar deporte"

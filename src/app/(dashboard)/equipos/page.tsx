@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { EquipoDetailModal } from "@/components/features/equipos/EquipoDetailModal";
 import { EquipoFormModal } from "@/components/features/equipos/EquipoFormModal";
+import { EquipoPlantillaModal } from "@/components/features/equipos/EquipoPlantillaModal";
 import { EquiposTable } from "@/components/features/equipos/EquiposTable";
 import { useToast } from "@/context/ToastContext";
 import { useDisclosure } from "@/hooks/useDisclosure";
@@ -23,12 +24,16 @@ export default function EquiposPage() {
   const canDelete = access.hasPermission("/equipos/{id}", "DELETE");
   const canAddDeporte = access.hasPermission("/equipos-deportes", "POST");
   const canRemoveDeporte = access.hasPermission("/equipos-deportes/{id}", "DELETE");
+  const canViewPlantilla = access.hasPermission("/equipo-jugador", "GET");
+  const canAsignarJugador = access.hasPermission("/equipo-jugador", "POST");
+  const canRetirarJugador = access.hasPermission("/equipo-jugador/{id}/retiro", "PATCH");
   const [equipos, setEquipos] = useState<EquipoDTO[]>([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const form = useDisclosure<EquipoDTO>();
   const detail = useDisclosure<EquipoDTO>();
+  const plantilla = useDisclosure<EquipoDTO>();
   const confirmDelete = useDisclosure<EquipoDTO>();
   const { notify } = useToast();
 
@@ -133,7 +138,9 @@ export default function EquiposPage() {
           canView={canView}
           canEdit={canEdit}
           canDelete={canDelete}
+          canViewPlantilla={canViewPlantilla}
           onView={(equipo) => detail.open(equipo)}
+          onViewPlantilla={(equipo) => plantilla.open(equipo)}
           onEdit={(equipo) => form.open(equipo)}
           onToggleActivo={(equipo) => void toggleActivo(equipo)}
           onDelete={(equipo) => confirmDelete.open(equipo)}
@@ -166,6 +173,16 @@ export default function EquiposPage() {
           equipo={detail.payload}
           canAddDeporte={canAddDeporte}
           canRemoveDeporte={canRemoveDeporte}
+        />
+      )}
+
+      {canViewPlantilla && (
+        <EquipoPlantillaModal
+          open={plantilla.isOpen}
+          onClose={plantilla.close}
+          equipo={plantilla.payload}
+          canAsignar={canAsignarJugador}
+          canRetirar={canRetirarJugador}
         />
       )}
 

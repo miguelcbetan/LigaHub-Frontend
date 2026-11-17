@@ -7,6 +7,7 @@ import { Card, CardHeader } from "@/components/ui/Card";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SearchInput } from "@/components/ui/SearchInput";
+import { DeporteEquiposModal } from "@/components/features/deportes/DeporteEquiposModal";
 import { DeporteFormModal } from "@/components/features/deportes/DeporteFormModal";
 import { DeportesTable } from "@/components/features/deportes/DeportesTable";
 import { useToast } from "@/context/ToastContext";
@@ -19,11 +20,15 @@ export default function DeportesPage() {
   const canCreate = access.hasPermission("/deportes", "POST");
   const canEdit = access.hasPermission("/deportes/{id}", "PATCH");
   const canDelete = access.hasPermission("/deportes/{id}", "DELETE");
+  const canViewEquipos =
+    access.hasPermission("/equipos-deportes", "GET") &&
+    access.hasPermission("/equipos", "GET");
   const [deportes, setDeportes] = useState<DeporteDTO[]>([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const form = useDisclosure<DeporteDTO>();
+  const equiposDelDeporte = useDisclosure<DeporteDTO>();
   const confirmDelete = useDisclosure<DeporteDTO>();
   const { notify } = useToast();
 
@@ -118,8 +123,10 @@ export default function DeportesPage() {
         <DeportesTable
           deportes={filtered}
           nombres={nombres}
+          canViewEquipos={canViewEquipos}
           canEdit={canEdit}
           canDelete={canDelete}
+          onViewEquipos={(deporte) => equiposDelDeporte.open(deporte)}
           onEdit={(deporte) => form.open(deporte)}
           onDelete={(deporte) => confirmDelete.open(deporte)}
         />
@@ -149,6 +156,14 @@ export default function DeportesPage() {
               notify(`Deporte “${created.nombre}” creado.`);
             }
           }}
+        />
+      )}
+
+      {canViewEquipos && (
+        <DeporteEquiposModal
+          open={equiposDelDeporte.isOpen}
+          onClose={equiposDelDeporte.close}
+          deporte={equiposDelDeporte.payload}
         />
       )}
 

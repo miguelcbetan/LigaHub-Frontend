@@ -13,6 +13,12 @@ export const businessEquiposDeportesApi = {
     );
   },
 
+  findByDeporte(deporteId: string) {
+    return request<EquipoDeporteDTO[]>(
+      `/api/business/equipos-deportes?deporte_id=${encodeURIComponent(deporteId)}`,
+    );
+  },
+
   create(equipoId: string, deporteId: string) {
     return request<EquipoDeporteDTO>("/api/business/equipos-deportes", {
       method: "POST",

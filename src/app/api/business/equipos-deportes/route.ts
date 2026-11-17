@@ -1,10 +1,20 @@
 import { proxyBusinessRequest } from "@/lib/server/business-proxy";
 
+const FILTROS = ["equipo_id", "deporte_id"] as const;
+
 export function GET(request: Request) {
-  // Solo se reenvía el filtro `equipo_id`; Business valida que sea un UUID.
-  const equipoId = new URL(request.url).searchParams.get("equipo_id");
-  const query = equipoId ? `?equipo_id=${encodeURIComponent(equipoId)}` : "";
-  return proxyBusinessRequest(request, `/equipos-deportes${query}`);
+  // Solo se reenvían los filtros conocidos; Business valida que sean UUID.
+  const params = new URL(request.url).searchParams;
+  const query = new URLSearchParams();
+  for (const filtro of FILTROS) {
+    const value = params.get(filtro);
+    if (value) query.set(filtro, value);
+  }
+  const search = query.toString();
+  return proxyBusinessRequest(
+    request,
+    `/equipos-deportes${search ? `?${search}` : ""}`,
+  );
 }
 
 export function POST(request: Request) {

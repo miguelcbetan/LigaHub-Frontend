@@ -10,6 +10,7 @@ import {
   Shield,
   ShieldCheck,
   Trophy,
+  UserRound,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -77,6 +78,12 @@ export const NAV_SECTIONS: NavSection[] = [
         label: "Equipos",
         icon: Shield,
         requires: (access) => access.hasPermission("/equipos", "GET"),
+      },
+      {
+        href: "/jugadores",
+        label: "Jugadores",
+        icon: UserRound,
+        requires: (access) => access.hasPermission("/jugadores", "GET"),
       },
       {
         href: "/torneos",
