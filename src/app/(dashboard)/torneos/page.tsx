@@ -11,6 +11,7 @@ import { TorneoFormModal } from "@/components/features/torneos/TorneoFormModal";
 import { TorneosTable } from "@/components/features/torneos/TorneosTable";
 import { useToast } from "@/context/ToastContext";
 import { useDisclosure } from "@/hooks/useDisclosure";
+import { businessDeportesApi, type DeporteDTO } from "@/lib/api/business-deportes";
 import { businessTorneosApi, type TorneoDTO } from "@/lib/api/business-torneos";
 import { useAccess } from "@/lib/access";
 
@@ -19,7 +20,11 @@ export default function TorneosPage() {
   const canCreate = access.hasPermission("/torneos", "POST");
   const canEdit = access.hasPermission("/torneos/{id}", "PATCH");
   const canDelete = access.hasPermission("/torneos/{id}", "DELETE");
+  const canListDeportes = access.hasPermission("/deportes", "GET");
   const [torneos, setTorneos] = useState<TorneoDTO[]>([]);
+  const [deportes, setDeportes] = useState<DeporteDTO[]>([]);
+  const [loadingDeportes, setLoadingDeportes] = useState(false);
+  const [deportesError, setDeportesError] = useState("");
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -47,6 +52,65 @@ export default function TorneosPage() {
     void loadTorneos();
   }, [loadTorneos]);
 
+  useEffect(() => {
+    if (!canListDeportes) {
+      setDeportesError("No tienes permiso para consultar los deportes.");
+      return;
+    }
+    let active = true;
+    setLoadingDeportes(true);
+    setDeportesError("");
+    businessDeportesApi
+      .findAll()
+      .then((result) => {
+        if (active) setDeportes(result);
+      })
+      .catch((caught: unknown) => {
+        if (active) {
+          setDeportesError(
+            caught instanceof Error
+              ? caught.message
+              : "No se pudieron cargar los deportes.",
+          );
+        }
+      })
+      .finally(() => {
+        if (active) setLoadingDeportes(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [canListDeportes]);
+
+  const deporteNombres = useMemo(
+    () => new Map(deportes.map(({ id, nombre }) => [id, nombre])),
+    [deportes],
+  );
+
+  const replaceTorneo = (updated: TorneoDTO) =>
+    setTorneos((current) =>
+      current.map((torneo) => (torneo.id === updated.id ? updated : torneo)),
+    );
+
+  const toggleActivo = async (torneo: TorneoDTO) => {
+    try {
+      const updated = await businessTorneosApi.update(torneo.id, {
+        activo: !torneo.activo,
+      });
+      replaceTorneo(updated);
+      notify(
+        `Torneo “${updated.nombre}” ${updated.activo ? "activado" : "desactivado"}.`,
+      );
+    } catch (caught) {
+      notify(
+        caught instanceof Error
+          ? caught.message
+          : "No se pudo cambiar el estado del torneo.",
+        "error",
+      );
+    }
+  };
+
   const filtered = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     return torneos.filter(
@@ -62,7 +126,7 @@ export default function TorneosPage() {
       <PageHeader
         eyebrow="Business"
         title="Gestión de torneos"
-        description="Crea, consulta, actualiza y elimina torneos de la plataforma."
+        description="Crea, consulta, actualiza, desactiva y elimina torneos de la plataforma."
         actions={
           <>
             <Button
@@ -112,9 +176,11 @@ export default function TorneosPage() {
         />
         <TorneosTable
           torneos={filtered}
+          deportes={deporteNombres}
           canEdit={canEdit}
           canDelete={canDelete}
           onEdit={(torneo) => form.open(torneo)}
+          onToggleActivo={(torneo) => void toggleActivo(torneo)}
           onDelete={(torneo) => confirmDelete.open(torneo)}
         />
       </Card>
@@ -124,17 +190,16 @@ export default function TorneosPage() {
           open={form.isOpen}
           onClose={form.close}
           torneo={form.payload}
+          deportes={deportes}
+          loadingDeportes={loadingDeportes}
+          deportesError={deportesError}
           onSubmit={async (input) => {
             if (form.payload) {
               const updated = await businessTorneosApi.update(
                 form.payload.id,
                 input,
               );
-              setTorneos((current) =>
-                current.map((torneo) =>
-                  torneo.id === updated.id ? updated : torneo,
-                ),
-              );
+              replaceTorneo(updated);
               notify(`Torneo “${updated.nombre}” actualizado.`);
             } else {
               const created = await businessTorneosApi.create(input);
@@ -155,7 +220,8 @@ export default function TorneosPage() {
             <>
               ¿Seguro que deseas eliminar{" "}
               <strong>{confirmDelete.payload?.nombre}</strong>? Esta acción no
-              se puede deshacer.
+              se puede deshacer. Si el torneo tiene fases, inscripciones o
+              escenarios asignados no se eliminará; desactívalo en su lugar.
             </>
           }
           onConfirm={async () => {

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { Pencil, Plus, TriangleAlert } from "lucide-react";
+import type { DeporteDTO } from "@/lib/api/business-deportes";
 import type { EstadoTorneo, TorneoDTO, TorneoInput } from "@/lib/api/business-torneos";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
@@ -12,6 +13,9 @@ interface TorneoFormModalProps {
   onClose: () => void;
   onSubmit: (input: TorneoInput) => void | Promise<void>;
   torneo?: TorneoDTO;
+  deportes: DeporteDTO[];
+  loadingDeportes: boolean;
+  deportesError: string;
 }
 
 const ESTADOS: { value: EstadoTorneo; label: string }[] = [
@@ -20,9 +24,15 @@ const ESTADOS: { value: EstadoTorneo; label: string }[] = [
   { value: "FINALIZADO", label: "Finalizado" },
 ];
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-export function TorneoFormModal({ open, onClose, onSubmit, torneo }: TorneoFormModalProps) {
+export function TorneoFormModal({
+  open,
+  onClose,
+  onSubmit,
+  torneo,
+  deportes,
+  loadingDeportes,
+  deportesError,
+}: TorneoFormModalProps) {
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [estado, setEstado] = useState<EstadoTorneo>("PENDIENTE");
@@ -54,8 +64,8 @@ export function TorneoFormModal({ open, onClose, onSubmit, torneo }: TorneoFormM
       setError("El máximo de equipos debe ser un número entero mayor que cero.");
       return;
     }
-    if (!UUID_PATTERN.test(deporteId.trim())) {
-      setError("Ingresa un UUID válido para el deporte.");
+    if (!deportes.some(({ id }) => id === deporteId)) {
+      setError("Selecciona un deporte registrado.");
       return;
     }
 
@@ -67,7 +77,7 @@ export function TorneoFormModal({ open, onClose, onSubmit, torneo }: TorneoFormM
         descripcion: descripcion.trim(),
         estado,
         max_equipos: maxEquiposValue,
-        deporte_id: deporteId.trim(),
+        deporte_id: deporteId,
       });
       onClose();
     } catch (caught) {
@@ -136,13 +146,29 @@ export function TorneoFormModal({ open, onClose, onSubmit, torneo }: TorneoFormM
             required
           />
         </div>
-        <Input
-          label="ID del deporte"
-          placeholder="UUID del deporte"
+        <Select
+          label="Deporte"
+          placeholder={
+            loadingDeportes
+              ? "Cargando deportes…"
+              : deportes.length
+                ? "Selecciona un deporte"
+                : "No hay deportes registrados"
+          }
           value={deporteId}
           onChange={(event) => setDeporteId(event.target.value)}
+          options={deportes.map((deporte) => ({
+            value: deporte.id,
+            label: deporte.nombre,
+          }))}
+          disabled={loadingDeportes || !!deportesError || deportes.length === 0}
           required
         />
+        {deportesError && (
+          <p role="alert" className="text-sm text-co-red">
+            No se pudieron cargar los deportes: {deportesError}
+          </p>
+        )}
       </form>
     </Modal>
   );

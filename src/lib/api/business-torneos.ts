@@ -8,6 +8,7 @@ export interface TorneoDTO {
   descripcion: string;
   estado: EstadoTorneo;
   max_equipos: number;
+  activo: boolean;
   deporte_id: string;
 }
 
@@ -17,6 +18,7 @@ export interface TorneoInput {
   estado: EstadoTorneo;
   max_equipos: number;
   deporte_id: string;
+  activo?: boolean;
 }
 
 export class BusinessApiError extends Error {
@@ -29,7 +31,7 @@ export class BusinessApiError extends Error {
   }
 }
 
-async function request<T>(
+export async function request<T>(
   path: string,
   options: {
     method?: "GET" | "POST" | "PATCH" | "DELETE";

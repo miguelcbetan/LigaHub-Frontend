@@ -46,4 +46,42 @@ describe("business tournament API", () => {
     );
     expect(onUnauthorized).toHaveBeenCalledOnce();
   });
+
+  it("deactivates a tournament with a partial update", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ id: "t-1", activo: false }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await businessTorneosApi.update("t-1", { activo: false });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/business/torneos/t-1",
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({ activo: false }),
+      }),
+    );
+  });
+
+  it("surfaces the conflict message when a tournament has dependencies", async () => {
+    const message =
+      "Torneo #t-1 has fases, inscripciones or escenarios; delete them first or deactivate it instead";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ statusCode: 409, message }), {
+          status: 409,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+
+    await expect(businessTorneosApi.remove("t-1")).rejects.toEqual(
+      new BusinessApiError(409, message),
+    );
+  });
 });

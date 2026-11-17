@@ -1,11 +1,13 @@
 import {
   CircleUserRound,
   ClipboardList,
+  Dumbbell,
   Grid3x3,
   KeyRound,
   LayoutDashboard,
   MapPin,
   Medal,
+  Shield,
   ShieldCheck,
   Trophy,
   Users,
@@ -64,6 +66,18 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     title: "Business",
     items: [
+      {
+        href: "/deportes",
+        label: "Deportes",
+        icon: Dumbbell,
+        requires: (access) => access.hasPermission("/deportes", "GET"),
+      },
+      {
+        href: "/equipos",
+        label: "Equipos",
+        icon: Shield,
+        requires: (access) => access.hasPermission("/equipos", "GET"),
+      },
       {
         href: "/torneos",
         label: "Torneos",

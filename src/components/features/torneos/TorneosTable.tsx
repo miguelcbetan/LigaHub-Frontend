@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil, Trash2, Trophy } from "lucide-react";
+import { Pencil, Power, PowerOff, Trash2, Trophy } from "lucide-react";
 import type { TorneoDTO } from "@/lib/api/business-torneos";
 import { Badge } from "@/components/ui/Badge";
 import { DataTable, type Column } from "@/components/ui/DataTable";
@@ -8,9 +8,11 @@ import { IconButton } from "@/components/ui/IconButton";
 
 interface TorneosTableProps {
   torneos: TorneoDTO[];
+  deportes: Map<string, string>;
   canEdit: boolean;
   canDelete: boolean;
   onEdit: (torneo: TorneoDTO) => void;
+  onToggleActivo: (torneo: TorneoDTO) => void;
   onDelete: (torneo: TorneoDTO) => void;
 }
 
@@ -28,9 +30,11 @@ const STATE_TONE: Record<TorneoDTO["estado"], "yellow" | "blue" | "neutral"> = {
 
 export function TorneosTable({
   torneos,
+  deportes,
   canEdit,
   canDelete,
   onEdit,
+  onToggleActivo,
   onDelete,
 }: TorneosTableProps) {
   const columns: Column<TorneoDTO>[] = [
@@ -59,6 +63,14 @@ export function TorneosTable({
       ),
     },
     {
+      key: "deporte",
+      header: "Deporte",
+      hideOnMobile: true,
+      cell: (torneo) => (
+        <span>{deportes.get(torneo.deporte_id) ?? torneo.deporte_id}</span>
+      ),
+    },
+    {
       key: "estado",
       header: "Estado",
       cell: (torneo) => (
@@ -72,6 +84,15 @@ export function TorneosTable({
       header: "Equipos",
       hideOnMobile: true,
       cell: (torneo) => <span>{torneo.max_equipos}</span>,
+    },
+    {
+      key: "activo",
+      header: "Activo",
+      cell: (torneo) => (
+        <Badge tone={torneo.activo ? "success" : "neutral"}>
+          {torneo.activo ? "Activo" : "Inactivo"}
+        </Badge>
+      ),
     },
     ...(canEdit || canDelete
       ? [
@@ -88,6 +109,14 @@ export function TorneosTable({
                     onClick={() => onEdit(torneo)}
                   >
                     <Pencil />
+                  </IconButton>
+                )}
+                {canEdit && (
+                  <IconButton
+                    label={torneo.activo ? "Desactivar torneo" : "Activar torneo"}
+                    onClick={() => onToggleActivo(torneo)}
+                  >
+                    {torneo.activo ? <PowerOff /> : <Power />}
                   </IconButton>
                 )}
                 {canDelete && (
