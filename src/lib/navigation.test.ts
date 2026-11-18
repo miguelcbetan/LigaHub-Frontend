@@ -25,4 +25,18 @@ describe("sports navigation", () => {
     expect(etiquetas(access)).not.toContain("Deportes");
     expect(canAccessPath("/deportes", access)).toBe(false);
   });
+
+  it("shows habilidades only to roles that can list them", () => {
+    const allowed = buildAccess([
+      { method: "GET", url: "/habilidades", model: "Habilidad" },
+    ]);
+    const denied = buildAccess([
+      { method: "GET", url: "/deportes", model: "Deporte" },
+    ]);
+
+    expect(etiquetas(allowed)).toContain("Habilidades");
+    expect(canAccessPath("/habilidades", allowed)).toBe(true);
+    expect(etiquetas(denied)).not.toContain("Habilidades");
+    expect(canAccessPath("/habilidades", denied)).toBe(false);
+  });
 });

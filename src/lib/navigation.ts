@@ -9,6 +9,7 @@ import {
   Medal,
   Shield,
   ShieldCheck,
+  Sparkles,
   Trophy,
   UserRound,
   Users,
@@ -84,6 +85,12 @@ export const NAV_SECTIONS: NavSection[] = [
         label: "Jugadores",
         icon: UserRound,
         requires: (access) => access.hasPermission("/jugadores", "GET"),
+      },
+      {
+        href: "/habilidades",
+        label: "Habilidades",
+        icon: Sparkles,
+        requires: (access) => access.hasPermission("/habilidades", "GET"),
       },
       {
         href: "/torneos",

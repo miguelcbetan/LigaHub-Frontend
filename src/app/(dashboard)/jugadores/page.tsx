@@ -26,6 +26,11 @@ export default function JugadoresPage() {
   const canDelete = access.hasPermission("/jugadores/{id}", "DELETE");
   const canListUsuarios = access.hasPermission("/api/users", "GET");
   const canViewEquipos = access.hasPermission("/equipo-jugador", "GET");
+  const canViewHabilidades =
+    access.hasPermission("/habilidad-jugador", "GET") &&
+    access.hasPermission("/habilidades", "GET");
+  const canAddHabilidad = access.hasPermission("/habilidad-jugador", "POST");
+  const canRemoveHabilidad = access.hasPermission("/habilidad-jugador/{id}", "DELETE");
   const [jugadores, setJugadores] = useState<JugadorDTO[]>([]);
   const [usuarios, setUsuarios] = useState<UserResponseDTO[]>([]);
   const [loadingUsuarios, setLoadingUsuarios] = useState(false);
@@ -197,6 +202,9 @@ export default function JugadoresPage() {
           onClose={detail.close}
           jugador={detail.payload}
           canViewEquipos={canViewEquipos}
+          canViewHabilidades={canViewHabilidades}
+          canAddHabilidad={canAddHabilidad}
+          canRemoveHabilidad={canRemoveHabilidad}
         />
       )}
 

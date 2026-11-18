@@ -18,12 +18,16 @@ import {
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { JugadorHabilidadesSection } from "./JugadorHabilidadesSection";
 
 interface JugadorDetailModalProps {
   open: boolean;
   onClose: () => void;
   jugador?: JugadorDTO;
   canViewEquipos?: boolean;
+  canViewHabilidades?: boolean;
+  canAddHabilidad?: boolean;
+  canRemoveHabilidad?: boolean;
 }
 
 export function JugadorDetailModal({
@@ -31,6 +35,9 @@ export function JugadorDetailModal({
   onClose,
   jugador,
   canViewEquipos = false,
+  canViewHabilidades = false,
+  canAddHabilidad = false,
+  canRemoveHabilidad = false,
 }: JugadorDetailModalProps) {
   const [detail, setDetail] = useState<JugadorDTO | null>(null);
   const [usuario, setUsuario] = useState<UserResponseDTO | null>(null);
@@ -214,6 +221,14 @@ export function JugadorDetailModal({
                 </ul>
               )}
             </section>
+          )}
+
+          {canViewHabilidades && detail && (
+            <JugadorHabilidadesSection
+              jugadorId={detail.id}
+              canAdd={canAddHabilidad}
+              canRemove={canRemoveHabilidad}
+            />
           )}
         </div>
       )}
