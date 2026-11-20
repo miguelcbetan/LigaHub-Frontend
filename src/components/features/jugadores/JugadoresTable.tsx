@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye, Pencil, Power, PowerOff, Trash2, UserRound } from "lucide-react";
+import { ContactRound, Eye, Pencil, Power, PowerOff, Trash2, UserRound } from "lucide-react";
 import type { UserResponseDTO } from "@/lib/api/types";
 import { edadDesde, type JugadorDTO } from "@/lib/api/business-jugadores";
 import { Badge } from "@/components/ui/Badge";
@@ -11,9 +11,11 @@ interface JugadoresTableProps {
   jugadores: JugadorDTO[];
   usuarios: Map<number, UserResponseDTO>;
   canView: boolean;
+  canViewProfile: boolean;
   canEdit: boolean;
   canDelete: boolean;
   onView: (jugador: JugadorDTO) => void;
+  onViewProfile: (jugador: JugadorDTO) => void;
   onEdit: (jugador: JugadorDTO) => void;
   onToggleActivo: (jugador: JugadorDTO) => void;
   onDelete: (jugador: JugadorDTO) => void;
@@ -23,9 +25,11 @@ export function JugadoresTable({
   jugadores,
   usuarios,
   canView,
+  canViewProfile,
   canEdit,
   canDelete,
   onView,
+  onViewProfile,
   onEdit,
   onToggleActivo,
   onDelete,
@@ -81,7 +85,7 @@ export function JugadoresTable({
         </Badge>
       ),
     },
-    ...(canView || canEdit || canDelete
+    ...(canView || canViewProfile || canEdit || canDelete
       ? [
           {
             key: "actions",
@@ -92,6 +96,14 @@ export function JugadoresTable({
                 {canView && (
                   <IconButton label="Ver detalle del jugador" onClick={() => onView(jugador)}>
                     <Eye />
+                  </IconButton>
+                )}
+                {canViewProfile && (
+                  <IconButton
+                    label="Consultar perfil deportivo"
+                    onClick={() => onViewProfile(jugador)}
+                  >
+                    <ContactRound />
                   </IconButton>
                 )}
                 {canEdit && (

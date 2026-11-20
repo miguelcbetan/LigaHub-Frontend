@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { JugadorDetailModal } from "@/components/features/jugadores/JugadorDetailModal";
 import { JugadorFormModal } from "@/components/features/jugadores/JugadorFormModal";
+import { JugadorPerfilModal } from "@/components/features/jugadores/JugadorPerfilModal";
 import { JugadoresTable } from "@/components/features/jugadores/JugadoresTable";
 import { useToast } from "@/context/ToastContext";
 import { useDisclosure } from "@/hooks/useDisclosure";
@@ -22,6 +23,7 @@ export default function JugadoresPage() {
   const access = useAccess();
   const canCreate = access.hasPermission("/jugadores", "POST");
   const canView = access.hasPermission("/jugadores/{id}", "GET");
+  const canViewProfile = access.hasPermission("/jugadores/{id}/perfil", "GET");
   const canEdit = access.hasPermission("/jugadores/{id}", "PATCH");
   const canDelete = access.hasPermission("/jugadores/{id}", "DELETE");
   const canListUsuarios = access.hasPermission("/api/users", "GET");
@@ -40,6 +42,7 @@ export default function JugadoresPage() {
   const [error, setError] = useState<string | null>(null);
   const form = useDisclosure<JugadorDTO>();
   const detail = useDisclosure<JugadorDTO>();
+  const profile = useDisclosure<JugadorDTO>();
   const confirmDelete = useDisclosure<JugadorDTO>();
   const { notify } = useToast();
 
@@ -164,9 +167,11 @@ export default function JugadoresPage() {
           jugadores={filtered}
           usuarios={usuariosPorId}
           canView={canView}
+          canViewProfile={canViewProfile}
           canEdit={canEdit}
           canDelete={canDelete}
           onView={(jugador) => detail.open(jugador)}
+          onViewProfile={(jugador) => profile.open(jugador)}
           onEdit={(jugador) => form.open(jugador)}
           onToggleActivo={(jugador) => void toggleActivo(jugador)}
           onDelete={(jugador) => confirmDelete.open(jugador)}
@@ -205,6 +210,22 @@ export default function JugadoresPage() {
           canViewHabilidades={canViewHabilidades}
           canAddHabilidad={canAddHabilidad}
           canRemoveHabilidad={canRemoveHabilidad}
+        />
+      )}
+
+      {canViewProfile && (
+        <JugadorPerfilModal
+          open={profile.isOpen}
+          onClose={profile.close}
+          jugador={profile.payload}
+          nombreUsuario={
+            profile.payload ? nombreDe(profile.payload) : ""
+          }
+          correoUsuario={
+            profile.payload
+              ? usuariosPorId.get(profile.payload.user_id)?.email
+              : undefined
+          }
         />
       )}
 

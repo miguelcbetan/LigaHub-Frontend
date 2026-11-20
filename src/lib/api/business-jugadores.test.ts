@@ -23,6 +23,7 @@ describe("business players API", () => {
 
     await businessJugadoresApi.findAll();
     await businessJugadoresApi.findOne("j-1");
+    await businessJugadoresApi.findPerfil("j-1");
     await businessJugadoresApi.create(nuevo);
     await businessJugadoresApi.update("j-1", { activo: false });
     await businessJugadoresApi.remove("j-1");
@@ -32,6 +33,7 @@ describe("business players API", () => {
     ).toEqual([
       ["/api/business/jugadores", "GET", undefined],
       ["/api/business/jugadores/j-1", "GET", undefined],
+      ["/api/business/jugadores/j-1/perfil", "GET", undefined],
       ["/api/business/jugadores", "POST", JSON.stringify(nuevo)],
       ["/api/business/jugadores/j-1", "PATCH", JSON.stringify({ activo: false })],
       ["/api/business/jugadores/j-1", "DELETE", undefined],

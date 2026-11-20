@@ -1,4 +1,5 @@
 import { request } from "./business-torneos";
+import type { HabilidadDTO } from "./business-habilidades";
 
 export interface JugadorDTO {
   id: string;
@@ -15,6 +16,27 @@ export interface JugadorInput {
   activo?: boolean;
 }
 
+export interface JugadorPerfilEquipoDTO {
+  id?: string;
+  equipo_id?: string;
+  nombre: string;
+  fecha_inicio: string;
+  fecha_fin: string | null;
+  activo: boolean;
+}
+
+export interface JugadorPerfilHabilidadDTO extends Partial<Omit<HabilidadDTO, "id">> {
+  id?: string;
+  habilidad_id?: string;
+  habilidad?: Pick<HabilidadDTO, "id" | "nombre">;
+}
+
+export interface JugadorPerfilDTO {
+  jugador: JugadorDTO;
+  equipos: JugadorPerfilEquipoDTO[];
+  habilidades: JugadorPerfilHabilidadDTO[];
+}
+
 export type JugadorUpdate = Partial<Omit<JugadorInput, "user_id">>;
 
 const jugadorUrl = (id: string) =>
@@ -27,6 +49,12 @@ export const businessJugadoresApi = {
 
   findOne(id: string) {
     return request<JugadorDTO>(jugadorUrl(id));
+  },
+
+  findPerfil(id: string) {
+    return request<JugadorPerfilDTO>(
+      `${jugadorUrl(id)}/perfil`,
+    );
   },
 
   create(input: JugadorInput) {
