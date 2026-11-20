@@ -67,7 +67,25 @@ describe("business tournament API", () => {
     );
   });
 
-  it("surfaces the conflict message when a tournament has dependencies", async () => {
+  it("loads the phases associated with a tournament", async () => {
+    const fases = [{ id: "f-1", tipo: "GRUPOS", numero_orden: 1 }];
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(fases), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(businessTorneosApi.findFases("t-1")).resolves.toEqual(fases);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/business/torneos/t-1/fases",
+      expect.objectContaining({ method: "GET", cache: "no-store" }),
+    );
+  });
+
+  it("localizes the conflict when a tournament has dependencies", async () => {
     const message =
       "Torneo #t-1 has fases, inscripciones or escenarios; delete them first or deactivate it instead";
     vi.stubGlobal(
@@ -81,7 +99,10 @@ describe("business tournament API", () => {
     );
 
     await expect(businessTorneosApi.remove("t-1")).rejects.toEqual(
-      new BusinessApiError(409, message),
+      new BusinessApiError(
+        409,
+        "No se puede eliminar el torneo porque tiene fases, partidos, inscripciones o escenarios asociados. Desactívalo en su lugar.",
+      ),
     );
   });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil, Power, PowerOff, Trash2, Trophy } from "lucide-react";
+import { Eye, Pencil, Power, PowerOff, Trash2, Trophy } from "lucide-react";
 import type { TorneoDTO } from "@/lib/api/business-torneos";
 import { Badge } from "@/components/ui/Badge";
 import { DataTable, type Column } from "@/components/ui/DataTable";
@@ -9,8 +9,10 @@ import { IconButton } from "@/components/ui/IconButton";
 interface TorneosTableProps {
   torneos: TorneoDTO[];
   deportes: Map<string, string>;
+  canView: boolean;
   canEdit: boolean;
   canDelete: boolean;
+  onView: (torneo: TorneoDTO) => void;
   onEdit: (torneo: TorneoDTO) => void;
   onToggleActivo: (torneo: TorneoDTO) => void;
   onDelete: (torneo: TorneoDTO) => void;
@@ -31,8 +33,10 @@ const STATE_TONE: Record<TorneoDTO["estado"], "yellow" | "blue" | "neutral"> = {
 export function TorneosTable({
   torneos,
   deportes,
+  canView,
   canEdit,
   canDelete,
+  onView,
   onEdit,
   onToggleActivo,
   onDelete,
@@ -94,7 +98,7 @@ export function TorneosTable({
         </Badge>
       ),
     },
-    ...(canEdit || canDelete
+    ...(canView || canEdit || canDelete
       ? [
           {
             key: "actions",
@@ -102,6 +106,14 @@ export function TorneosTable({
             className: "text-right",
             cell: (torneo) => (
               <div className="flex justify-end gap-0.5">
+                {canView && (
+                  <IconButton
+                    label="Ver detalle del torneo"
+                    onClick={() => onView(torneo)}
+                  >
+                    <Eye />
+                  </IconButton>
+                )}
                 {canEdit && (
                   <IconButton
                     label="Editar torneo"

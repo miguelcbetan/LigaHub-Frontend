@@ -150,7 +150,7 @@ El navegador no llama directamente a `ms_business`: pasa por las rutas proxy de 
 
 | Apartado | Ruta | Cliente | Recurso en `ms_business` |
 | --- | --- | --- | --- |
-| Torneos | `/torneos` | `business-torneos.ts` | `/torneos` |
+| Torneos | `/torneos` | `business-torneos.ts` | `/torneos`, `/torneos/{id}/fases` |
 | Inscripciones | `/inscripciones` | `business-inscripciones.ts` | `/inscripciones` |
 | Escenarios de torneo | `/escenarios-torneo` | `business-escenarios-torneo.ts` | `/escenarios-torneo` |
 | Fases finales | `/fases-finales` | `business-fases-finales.ts` | `/fases?tipo=FINAL`, `/fases/{id}` |
@@ -168,6 +168,8 @@ El menú y los botones se muestran según los permisos del usuario. Aun así, la
 | Inscripciones | `GET /inscripciones` | `POST /inscripciones` | `PATCH /inscripciones/{id}` | `DELETE /inscripciones/{id}` |
 | Escenarios de torneo | `GET /escenarios-torneo` | `POST /escenarios-torneo` | `PATCH /escenarios-torneo/{id}` | `DELETE /escenarios-torneo/{id}` |
 | Fases finales | `GET /fases` | `POST /fases` | `PATCH /fases/{id}` | `DELETE /fases/{id}` |
+
+El detalle de un torneo muestra sus datos generales y consulta las fases con `GET /torneos/{id}/fases`; el rol que lo use necesita ese permiso.
 
 Los formularios con lista de torneos también necesitan `GET /torneos`; sin él, la lista muestra "No se pudieron cargar los torneos". El rol `ADMIN` ya tiene todos estos permisos.
 

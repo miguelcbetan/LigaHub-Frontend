@@ -7,6 +7,7 @@ import { Card, CardHeader } from "@/components/ui/Card";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SearchInput } from "@/components/ui/SearchInput";
+import { TorneoDetailModal } from "@/components/features/torneos/TorneoDetailModal";
 import { TorneoFormModal } from "@/components/features/torneos/TorneoFormModal";
 import { TorneosTable } from "@/components/features/torneos/TorneosTable";
 import { useToast } from "@/context/ToastContext";
@@ -18,6 +19,8 @@ import { useAccess } from "@/lib/access";
 export default function TorneosPage() {
   const access = useAccess();
   const canCreate = access.hasPermission("/torneos", "POST");
+  const canView = access.hasPermission("/torneos/{id}", "GET");
+  const canViewFases = access.hasPermission("/torneos/{id}/fases", "GET");
   const canEdit = access.hasPermission("/torneos/{id}", "PATCH");
   const canDelete = access.hasPermission("/torneos/{id}", "DELETE");
   const canListDeportes = access.hasPermission("/deportes", "GET");
@@ -29,6 +32,7 @@ export default function TorneosPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const form = useDisclosure<TorneoDTO>();
+  const detail = useDisclosure<TorneoDTO>();
   const confirmDelete = useDisclosure<TorneoDTO>();
   const { notify } = useToast();
 
@@ -177,13 +181,30 @@ export default function TorneosPage() {
         <TorneosTable
           torneos={filtered}
           deportes={deporteNombres}
+          canView={canView || canViewFases}
           canEdit={canEdit}
           canDelete={canDelete}
+          onView={(torneo) => detail.open(torneo)}
           onEdit={(torneo) => form.open(torneo)}
           onToggleActivo={(torneo) => void toggleActivo(torneo)}
           onDelete={(torneo) => confirmDelete.open(torneo)}
         />
       </Card>
+
+      {(canView || canViewFases) && (
+        <TorneoDetailModal
+          open={detail.isOpen}
+          onClose={detail.close}
+          torneo={detail.payload}
+          deporteNombre={
+            detail.payload
+              ? deporteNombres.get(detail.payload.deporte_id) ??
+                detail.payload.deporte_id
+              : ""
+          }
+          canViewFases={canViewFases}
+        />
+      )}
 
       {(canCreate || canEdit) && (
         <TorneoFormModal
@@ -220,8 +241,9 @@ export default function TorneosPage() {
             <>
               ¿Seguro que deseas eliminar{" "}
               <strong>{confirmDelete.payload?.nombre}</strong>? Esta acción no
-              se puede deshacer. Si el torneo tiene fases, inscripciones o
-              escenarios asignados no se eliminará; desactívalo en su lugar.
+              se puede deshacer. Si el torneo tiene fases, partidos,
+              inscripciones o escenarios asignados no se eliminará; desactívalo
+              en su lugar.
             </>
           }
           onConfirm={async () => {

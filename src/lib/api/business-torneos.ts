@@ -21,6 +21,15 @@ export interface TorneoInput {
   activo?: boolean;
 }
 
+export interface TorneoFaseDTO {
+  id: string;
+  tipo?: string;
+  numero_orden?: number;
+  estado?: string;
+  fecha_inicio?: string;
+  fecha_fin?: string;
+}
+
 export class BusinessApiError extends Error {
   constructor(
     readonly status: number,
@@ -29,6 +38,20 @@ export class BusinessApiError extends Error {
     super(message);
     this.name = "BusinessApiError";
   }
+}
+
+function localizedBusinessMessage(message: string): string {
+  const mentionsDependencies =
+    /has\s+(fases?|phases?|inscripciones?|registrations?|escenarios?|matches|partidos)/i.test(
+      message,
+    );
+  const mentionsDeletion = /\bdelete\b|\bdeactivate\b|\beliminar\b/i.test(message);
+
+  if (mentionsDependencies && mentionsDeletion) {
+    return "No se puede eliminar el torneo porque tiene fases, partidos, inscripciones o escenarios asociados. Desactívalo en su lugar.";
+  }
+
+  return message;
 }
 
 export async function request<T>(
@@ -75,7 +98,10 @@ export async function request<T>(
     } catch {
       // Si la respuesta de error no es JSON, se conserva el mensaje por estado.
     }
-    throw new BusinessApiError(response.status, message);
+    throw new BusinessApiError(
+      response.status,
+      localizedBusinessMessage(message),
+    );
   }
 
   if (response.status === 204) return undefined as T;
@@ -85,6 +111,12 @@ export async function request<T>(
 export const businessTorneosApi = {
   findAll() {
     return request<TorneoDTO[]>("/api/business/torneos");
+  },
+
+  findFases(id: string) {
+    return request<TorneoFaseDTO[]>(
+      `/api/business/torneos/${encodeURIComponent(id)}/fases`,
+    );
   },
 
   create(input: TorneoInput) {
