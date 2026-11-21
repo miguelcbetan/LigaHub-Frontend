@@ -10,6 +10,8 @@ export interface EquipoDTO {
 export interface EquipoInput {
   nombre: string;
   activo?: boolean;
+  /** Id del grupo (fases_grupos); null deja al equipo sin grupo. */
+  fase_grupos_id?: string | null;
 }
 
 const equipoUrl = (id: string) =>

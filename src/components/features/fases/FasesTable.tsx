@@ -16,7 +16,7 @@ interface FasesTableProps {
 }
 
 const TIPO_LABEL: Record<FaseDTO["tipo"], string> = {
-  GRUPOS: "Fase de grupos",
+  GRUPOS: "Grupo",
   FINAL: "Fase final",
 };
 
@@ -55,7 +55,9 @@ export function FasesTable({
             <Medal className="size-4" />
           </span>
           <span className="font-medium text-zinc-900 dark:text-zinc-100">
-            {TIPO_LABEL[fase.tipo]}
+            {fase.tipo === "GRUPOS" && fase.nombre
+              ? fase.nombre
+              : TIPO_LABEL[fase.tipo]}
           </span>
         </div>
       ),
@@ -103,6 +105,8 @@ export function FasesTable({
               ? ` · ${fase.numero_partidos} ${fase.numero_partidos === 1 ? "partido" : "partidos"}`
               : ""}
           </span>
+        ) : fase.tipo === "GRUPOS" && fase.cupo_equipos ? (
+          <span>Cupo: {fase.cupo_equipos} equipos</span>
         ) : (
           <span className="text-zinc-500">—</span>
         ),

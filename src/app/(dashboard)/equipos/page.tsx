@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { EquipoDetailModal } from "@/components/features/equipos/EquipoDetailModal";
 import { EquipoFormModal } from "@/components/features/equipos/EquipoFormModal";
+import { EquipoGrupoModal } from "@/components/features/equipos/EquipoGrupoModal";
 import { EquipoPlantillaModal } from "@/components/features/equipos/EquipoPlantillaModal";
 import { EquiposTable } from "@/components/features/equipos/EquiposTable";
 import { useToast } from "@/context/ToastContext";
@@ -34,6 +35,7 @@ export default function EquiposPage() {
   const form = useDisclosure<EquipoDTO>();
   const detail = useDisclosure<EquipoDTO>();
   const plantilla = useDisclosure<EquipoDTO>();
+  const grupo = useDisclosure<EquipoDTO>();
   const confirmDelete = useDisclosure<EquipoDTO>();
   const { notify } = useToast();
 
@@ -142,6 +144,7 @@ export default function EquiposPage() {
           onView={(equipo) => detail.open(equipo)}
           onViewPlantilla={(equipo) => plantilla.open(equipo)}
           onEdit={(equipo) => form.open(equipo)}
+          onAsignarGrupo={(equipo) => grupo.open(equipo)}
           onToggleActivo={(equipo) => void toggleActivo(equipo)}
           onDelete={(equipo) => confirmDelete.open(equipo)}
         />
@@ -162,6 +165,26 @@ export default function EquiposPage() {
               setEquipos((current) => [created, ...current]);
               notify(`Equipo “${created.nombre}” registrado.`);
             }
+          }}
+        />
+      )}
+
+      {canEdit && (
+        <EquipoGrupoModal
+          open={grupo.isOpen}
+          onClose={grupo.close}
+          equipo={grupo.payload}
+          onSubmit={async (faseGruposId) => {
+            if (!grupo.payload) return;
+            const updated = await businessEquiposApi.update(grupo.payload.id, {
+              fase_grupos_id: faseGruposId,
+            });
+            replaceEquipo(updated);
+            notify(
+              faseGruposId
+                ? `Equipo “${updated.nombre}” asignado al grupo.`
+                : `Equipo “${updated.nombre}” quedó sin grupo.`,
+            );
           }}
         />
       )}

@@ -40,8 +40,8 @@ describe("business phases API", () => {
       fecha_fin: "2026-11-20",
       estado: "PENDIENTE" as const,
       torneo_id: "t-1",
-      cantidad_grupos: 2,
-      equipos_por_grupo: 4,
+      nombre: "Grupo A",
+      cupo_equipos: 4,
     };
 
     await businessFasesApi.create(input);

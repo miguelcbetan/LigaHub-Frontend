@@ -12,8 +12,11 @@ export interface FaseDTO {
   fecha_fin: string;
   estado: EstadoFase;
   torneo_id: string;
-  cantidad_grupos?: number | null;
-  equipos_por_grupo?: number | null;
+  /** Id del grupo en fases_grupos; es el valor de equipo.fase_grupos_id. */
+  fase_grupos_id?: string;
+  fase_final_id?: string;
+  nombre?: string | null;
+  cupo_equipos?: number | null;
   numero_partidos?: number | null;
   modalidad?: ModalidadFinal | null;
 }
@@ -30,8 +33,8 @@ export interface FaseInput {
   fecha_fin: string;
   estado: EstadoFase;
   torneo_id: string;
-  cantidad_grupos?: number;
-  equipos_por_grupo?: number;
+  nombre?: string;
+  cupo_equipos?: number;
   numero_partidos?: number;
   modalidad?: ModalidadFinal;
 }

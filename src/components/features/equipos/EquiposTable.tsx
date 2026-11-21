@@ -1,6 +1,15 @@
 "use client";
 
-import { Eye, Pencil, Power, PowerOff, Shield, Trash2, Users } from "lucide-react";
+import {
+  Eye,
+  LayoutGrid,
+  Pencil,
+  Power,
+  PowerOff,
+  Shield,
+  Trash2,
+  Users,
+} from "lucide-react";
 import type { EquipoDTO } from "@/lib/api/business-equipos";
 import { Badge } from "@/components/ui/Badge";
 import { DataTable, type Column } from "@/components/ui/DataTable";
@@ -15,6 +24,7 @@ interface EquiposTableProps {
   onView: (equipo: EquipoDTO) => void;
   onViewPlantilla: (equipo: EquipoDTO) => void;
   onEdit: (equipo: EquipoDTO) => void;
+  onAsignarGrupo: (equipo: EquipoDTO) => void;
   onToggleActivo: (equipo: EquipoDTO) => void;
   onDelete: (equipo: EquipoDTO) => void;
 }
@@ -28,6 +38,7 @@ export function EquiposTable({
   onView,
   onViewPlantilla,
   onEdit,
+  onAsignarGrupo,
   onToggleActivo,
   onDelete,
 }: EquiposTableProps) {
@@ -84,6 +95,15 @@ export function EquiposTable({
                     onClick={() => onEdit(equipo)}
                   >
                     <Pencil />
+                  </IconButton>
+                )}
+                {canEdit && (
+                  <IconButton
+                    label="Asignar grupo"
+                    tone="blue"
+                    onClick={() => onAsignarGrupo(equipo)}
+                  >
+                    <LayoutGrid />
                   </IconButton>
                 )}
                 {canEdit && (

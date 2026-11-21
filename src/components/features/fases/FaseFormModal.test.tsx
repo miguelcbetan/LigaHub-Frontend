@@ -45,10 +45,10 @@ describe("FaseFormModal", () => {
     fireEvent.change(screen.getByLabelText("Número de orden"), {
       target: { value: "1" },
     });
-    fireEvent.change(screen.getByLabelText("Cantidad de grupos"), {
-      target: { value: "2" },
+    fireEvent.change(screen.getByLabelText("Nombre del grupo"), {
+      target: { value: "Grupo A" },
     });
-    fireEvent.change(screen.getByLabelText("Equipos por grupo"), {
+    fireEvent.change(screen.getByLabelText("Cupo de equipos"), {
       target: { value: "4" },
     });
     fireEvent.change(screen.getByRole("combobox", { name: "Torneo" }), {
@@ -64,8 +64,8 @@ describe("FaseFormModal", () => {
         fecha_fin: expect.any(String),
         estado: "PENDIENTE",
         torneo_id: TORNEO_ID,
-        cantidad_grupos: 2,
-        equipos_por_grupo: 4,
+        nombre: "Grupo A",
+        cupo_equipos: 4,
       }),
     );
     expect(screen.queryByLabelText("Número de partidos")).toBeNull();
@@ -75,7 +75,7 @@ describe("FaseFormModal", () => {
   it("translates Business group validation errors into Spanish", async () => {
     const onSubmit = vi.fn().mockRejectedValue(
       new Error(
-        "cantidad_grupos must not be less than 1 cantidad_grupos must be an integer number equipos_por_grupo must not be less than 2 equipos_por_grupo must be an integer number",
+        "cupo_equipos must not be less than 2 cupo_equipos must be an integer number",
       ),
     );
     render(
@@ -93,10 +93,10 @@ describe("FaseFormModal", () => {
     fireEvent.change(screen.getByLabelText("Número de orden"), {
       target: { value: "1" },
     });
-    fireEvent.change(screen.getByLabelText("Cantidad de grupos"), {
-      target: { value: "2" },
+    fireEvent.change(screen.getByLabelText("Nombre del grupo"), {
+      target: { value: "Grupo A" },
     });
-    fireEvent.change(screen.getByLabelText("Equipos por grupo"), {
+    fireEvent.change(screen.getByLabelText("Cupo de equipos"), {
       target: { value: "4" },
     });
     fireEvent.change(screen.getByRole("combobox", { name: "Torneo" }), {
@@ -105,8 +105,8 @@ describe("FaseFormModal", () => {
     fireEvent.click(screen.getByRole("button", { name: "Crear fase" }));
 
     const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toContain("La cantidad de grupos debe ser al menos 1.");
-    expect(alert.textContent).toContain("Debe haber al menos 2 equipos por grupo.");
+    expect(alert.textContent).toContain("El grupo debe admitir al menos 2 equipos.");
+    expect(alert.textContent).toContain("El cupo de equipos debe ser un número entero.");
     expect(alert.textContent).not.toContain("must");
   });
 
@@ -171,10 +171,10 @@ describe("FaseFormModal", () => {
     fireEvent.change(screen.getByLabelText("Número de orden"), {
       target: { value: "1" },
     });
-    fireEvent.change(screen.getByLabelText("Cantidad de grupos"), {
-      target: { value: "2" },
+    fireEvent.change(screen.getByLabelText("Nombre del grupo"), {
+      target: { value: "Grupo A" },
     });
-    fireEvent.change(screen.getByLabelText("Equipos por grupo"), {
+    fireEvent.change(screen.getByLabelText("Cupo de equipos"), {
       target: { value: "4" },
     });
     fireEvent.change(screen.getByRole("combobox", { name: "Torneo" }), {

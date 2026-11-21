@@ -23,7 +23,7 @@ interface FaseFormModalProps {
 }
 
 const TIPOS: { value: TipoFase; label: string }[] = [
-  { value: "GRUPOS", label: "Fase de grupos" },
+  { value: "GRUPOS", label: "Grupo" },
   { value: "FINAL", label: "Fase final" },
 ];
 
@@ -55,20 +55,12 @@ function parsePositiveInt(value: string): number | null {
 function translatePhaseValidationMessage(message: string): string {
   return message
     .replace(
-      /\bcantidad_grupos must not be less than 1\b/gi,
-      "La cantidad de grupos debe ser al menos 1.",
+      /\bcupo_equipos must not be less than 2\b/gi,
+      "El grupo debe admitir al menos 2 equipos.",
     )
     .replace(
-      /\bcantidad_grupos must be an integer number\b/gi,
-      "La cantidad de grupos debe ser un número entero.",
-    )
-    .replace(
-      /\bequipos_por_grupo must not be less than 2\b/gi,
-      "Debe haber al menos 2 equipos por grupo.",
-    )
-    .replace(
-      /\bequipos_por_grupo must be an integer number\b/gi,
-      "Los equipos por grupo deben ser un número entero.",
+      /\bcupo_equipos must be an integer number\b/gi,
+      "El cupo de equipos debe ser un número entero.",
     );
 }
 
@@ -84,8 +76,8 @@ export function FaseFormModal({
   const [fechaInicio, setFechaInicio] = useState("");
   const [fechaFin, setFechaFin] = useState("");
   const [estado, setEstado] = useState<EstadoFase>("PENDIENTE");
-  const [cantidadGrupos, setCantidadGrupos] = useState("");
-  const [equiposPorGrupo, setEquiposPorGrupo] = useState("");
+  const [nombreGrupo, setNombreGrupo] = useState("");
+  const [cupoEquipos, setCupoEquipos] = useState("");
   const [numeroPartidos, setNumeroPartidos] = useState("1");
   const [modalidad, setModalidad] = useState<ModalidadFinal>("PARTIDO_UNICO");
   const [torneoId, setTorneoId] = useState("");
@@ -103,11 +95,9 @@ export function FaseFormModal({
     setFechaInicio(fase?.fecha_inicio ?? today);
     setFechaFin(fase?.fecha_fin ?? today);
     setEstado(fase?.estado ?? "PENDIENTE");
-    setCantidadGrupos(
-      fase?.cantidad_grupos == null ? "" : String(fase.cantidad_grupos),
-    );
-    setEquiposPorGrupo(
-      fase?.equipos_por_grupo == null ? "" : String(fase.equipos_por_grupo),
+    setNombreGrupo(fase?.nombre ?? "");
+    setCupoEquipos(
+      fase?.cupo_equipos == null ? "" : String(fase.cupo_equipos),
     );
     setNumeroPartidos(String(fase?.numero_partidos ?? 1));
     setModalidad(fase?.modalidad ?? "PARTIDO_UNICO");
@@ -178,18 +168,22 @@ export function FaseFormModal({
     };
 
     if (tipo === "GRUPOS") {
-      const grupos = parsePositiveInt(cantidadGrupos);
-      if (grupos === null) {
-        setError("La cantidad de grupos debe ser un entero mayor o igual a 1.");
+      const nombre = nombreGrupo.trim();
+      if (!nombre) {
+        setError("El nombre del grupo es obligatorio.");
         return;
       }
-      const equipos = parsePositiveInt(equiposPorGrupo);
-      if (equipos === null || equipos < 2) {
-        setError("Debe haber al menos 2 equipos por grupo.");
+      if (nombre.length > 100) {
+        setError("El nombre del grupo no puede superar los 100 caracteres.");
         return;
       }
-      input.cantidad_grupos = grupos;
-      input.equipos_por_grupo = equipos;
+      const cupo = parsePositiveInt(cupoEquipos);
+      if (cupo === null || cupo < 2) {
+        setError("El grupo debe admitir al menos 2 equipos.");
+        return;
+      }
+      input.nombre = nombre;
+      input.cupo_equipos = cupo;
     } else {
       const partidos = parsePositiveInt(numeroPartidos);
       if (partidos === null) {
@@ -291,21 +285,20 @@ export function FaseFormModal({
           {tipo === "GRUPOS" && (
             <>
               <Input
-                label="Cantidad de grupos"
-                type="number"
-                min={1}
-                step={1}
-                value={cantidadGrupos}
-                onChange={(event) => setCantidadGrupos(event.target.value)}
+                label="Nombre del grupo"
+                placeholder="Grupo A"
+                maxLength={100}
+                value={nombreGrupo}
+                onChange={(event) => setNombreGrupo(event.target.value)}
                 required
               />
               <Input
-                label="Equipos por grupo"
+                label="Cupo de equipos"
                 type="number"
                 min={2}
                 step={1}
-                value={equiposPorGrupo}
-                onChange={(event) => setEquiposPorGrupo(event.target.value)}
+                value={cupoEquipos}
+                onChange={(event) => setCupoEquipos(event.target.value)}
                 required
               />
             </>
