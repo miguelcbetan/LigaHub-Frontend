@@ -113,7 +113,7 @@ export const NAV_SECTIONS: NavSection[] = [
       },
       {
         href: "/fases-finales",
-        label: "Fases finales",
+        label: "Fases de torneo",
         icon: Medal,
         requires: (access) => access.hasPermission("/fases", "GET"),
       },

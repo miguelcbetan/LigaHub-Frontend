@@ -43,7 +43,7 @@ Lo más importante: **la interfaz se adapta a los permisos reales del usuario au
 | --- | --- |
 | **Autenticación** | Inicio de sesión con JWT, recuperación y restablecimiento de contraseña, registro público y cierre de sesión automático al expirar el token. |
 | **Camerino (Dashboard)** | Resumen con totales de usuarios, roles y permisos, cobertura de permisos por rol y últimos usuarios registrados. |
-| **Usuarios** | Listado con búsqueda, alta, edición, eliminación, activar/desactivar, detalle con perfil y asignación de roles. |
+| **Usuarios** | Listado con búsqueda; altas, edición, eliminación, activación y detalle aparecen según los permisos del rol. |
 | **Roles** | CRUD de roles, detalle de cada rol y administración de los usuarios que lo tienen. |
 | **Permisos** | CRUD de permisos (URL + método HTTP + módulo) con detalle y badges por método. |
 | **Matriz de permisos** | Edición visual de qué permisos tiene cada rol; solo se envían al servidor los cambios (diff). |
@@ -51,7 +51,7 @@ Lo más importante: **la interfaz se adapta a los permisos reales del usuario au
 | **Torneos** | CRUD de torneos en `ms_business`. |
 | **Inscripciones** | CRUD de inscripciones de equipos; el torneo se elige en una lista desplegable. |
 | **Escenarios de torneo** | CRUD de asignaciones de escenarios a torneos; el torneo se elige en una lista desplegable. |
-| **Fases finales** | CRUD de fases de tipo FINAL (el tipo es fijo); el torneo se elige en una lista desplegable. |
+| **Fases de torneo** | CRUD de fases de grupos y finales; los grupos requieren cantidad de grupos y equipos por grupo, y el torneo se elige en una lista desplegable. |
 | **Experiencia** | Modo claro/oscuro, diseño responsive, notificaciones (toasts), diálogos de confirmación y estados vacíos/de carga. |
 
 ## Tecnologías
@@ -153,10 +153,10 @@ El navegador no llama directamente a `ms_business`: pasa por las rutas proxy de 
 | Torneos | `/torneos` | `business-torneos.ts` | `/torneos`, `/torneos/{id}/fases` |
 | Inscripciones | `/inscripciones` | `business-inscripciones.ts` | `/inscripciones`, `/equipos`, `/equipos-deportes`, `/torneos` |
 | Escenarios de torneo | `/escenarios-torneo` | `business-escenarios-torneo.ts` | `/escenarios-torneo` |
-| Fases finales | `/fases-finales` | `business-fases-finales.ts` | `/fases?tipo=FINAL`, `/fases/{id}` |
+| Fases de torneo | `/fases-finales` | `business-fases.ts` | `/fases`, `/fases/{id}` |
 
 - En **inscripciones**, **escenarios de torneo** y **fases finales** el torneo se elige en una lista desplegable con los torneos existentes. En inscripciones, los equipos se pueden seleccionar si están activos y asociados al deporte del torneo. `escenario_id` se escribe a mano como UUID, porque su microservicio no forma parte de este alcance.
-- En **fases finales** no se elige el tipo: al crear siempre se envía `tipo: "FINAL"`, y la lista solo trae fases finales.
+- En **fases de torneo** se pueden gestionar fases de grupos y finales, filtrando por tipo y torneo. Las fases finales conservan los campos de modalidad y cantidad de partidos.
 
 ### Permisos necesarios
 
@@ -167,7 +167,7 @@ El menú y los botones se muestran según los permisos del usuario. Aun así, la
 | Torneos | `GET /torneos` | `POST /torneos` | `PATCH /torneos/{id}` | `DELETE /torneos/{id}` |
 | Inscripciones | `GET /inscripciones` | `POST /inscripciones` | `PATCH /inscripciones/{id}` | `DELETE /inscripciones/{id}` |
 | Escenarios de torneo | `GET /escenarios-torneo` | `POST /escenarios-torneo` | `PATCH /escenarios-torneo/{id}` | `DELETE /escenarios-torneo/{id}` |
-| Fases finales | `GET /fases` | `POST /fases` | `PATCH /fases/{id}` | `DELETE /fases/{id}` |
+| Fases de torneo | `GET /fases` | `POST /fases` | `PATCH /fases/{id}` | `DELETE /fases/{id}` |
 
 El detalle de un torneo muestra sus datos generales y consulta las fases con `GET /torneos/{id}/fases`; el rol que lo use necesita ese permiso.
 

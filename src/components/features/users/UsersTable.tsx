@@ -11,6 +11,13 @@ import { formatDate } from "@/utils/format";
 interface UsersTableProps {
   users: User[];
   roles: Role[];
+  actions: {
+    view: boolean;
+    manage: boolean;
+    edit: boolean;
+    toggleStatus: boolean;
+    delete: boolean;
+  };
   onView: (user: User) => void;
   /** Lleva a la gestión del perfil y los roles del usuario. */
   onManage: (user: User) => void;
@@ -19,8 +26,56 @@ interface UsersTableProps {
   onDelete: (user: User) => void;
 }
 
-export function UsersTable({ users, roles, onView, onManage, onEdit, onToggleStatus, onDelete }: UsersTableProps) {
+export function UsersTable({
+  users,
+  roles,
+  actions,
+  onView,
+  onManage,
+  onEdit,
+  onToggleStatus,
+  onDelete,
+}: UsersTableProps) {
   const roleName = (id: string) => roles.find((r) => r.id === id)?.name ?? id;
+  const hasActions = Object.values(actions).some(Boolean);
+  const actionColumn: Column<User> = {
+    key: "actions",
+    header: <span className="sr-only">Acciones</span>,
+    className: "text-right",
+    cell: (u) => (
+      <div className="flex justify-end gap-0.5">
+        {actions.view && (
+          <IconButton label="Ver detalle" onClick={() => onView(u)}>
+            <Eye />
+          </IconButton>
+        )}
+        {actions.manage && (
+          <IconButton label="Perfil y roles" onClick={() => onManage(u)}>
+            <UserCog />
+          </IconButton>
+        )}
+        {actions.edit && (
+          <IconButton label="Editar" tone="blue" onClick={() => onEdit(u)}>
+            <Pencil />
+          </IconButton>
+        )}
+        {actions.toggleStatus && (
+          <IconButton
+            label={u.status === "activo" ? "Desactivar" : "Activar"}
+            tone={u.status === "activo" ? "red" : "blue"}
+            onClick={() => onToggleStatus(u)}
+          >
+            <Power />
+          </IconButton>
+        )}
+        {actions.delete && (
+          <IconButton label="Eliminar" tone="red" onClick={() => onDelete(u)}>
+            <Trash />
+          </IconButton>
+        )}
+      </div>
+    ),
+  };
 
   const columns: Column<User>[] = [
     {
@@ -65,34 +120,7 @@ export function UsersTable({ users, roles, onView, onManage, onEdit, onToggleSta
       hideOnMobile: true,
       cell: (u) => <span className="text-zinc-500">{formatDate(u.createdAt)}</span>,
     },
-    {
-      key: "actions",
-      header: <span className="sr-only">Acciones</span>,
-      className: "text-right",
-      cell: (u) => (
-        <div className="flex justify-end gap-0.5">
-          <IconButton label="Ver detalle" onClick={() => onView(u)}>
-            <Eye />
-          </IconButton>
-          <IconButton label="Perfil y roles" onClick={() => onManage(u)}>
-            <UserCog />
-          </IconButton>
-          <IconButton label="Editar" tone="blue" onClick={() => onEdit(u)}>
-            <Pencil />
-          </IconButton>
-          <IconButton
-            label={u.status === "activo" ? "Desactivar" : "Activar"}
-            tone={u.status === "activo" ? "red" : "blue"}
-            onClick={() => onToggleStatus(u)}
-          >
-            <Power />
-          </IconButton>
-          <IconButton label="Eliminar" tone="red" onClick={() => onDelete(u)}>
-            <Trash />
-          </IconButton>
-        </div>
-      ),
-    },
+    ...(hasActions ? [actionColumn] : []),
   ];
 
   return (
@@ -101,7 +129,7 @@ export function UsersTable({ users, roles, onView, onManage, onEdit, onToggleSta
       data={users}
       rowKey={(u) => u.id}
       emptyTitle="Ningún jugador en la convocatoria"
-      emptyDescription="Prueba con otra búsqueda o registra un nuevo usuario."
+      emptyDescription="Prueba con otra búsqueda o cambia el filtro."
     />
   );
 }

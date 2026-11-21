@@ -8,6 +8,7 @@ import { useData } from "@/context/DataContext";
 import { useToast } from "@/context/ToastContext";
 import { useDisclosure } from "@/hooks/useDisclosure";
 import { describeError } from "@/lib/api/http";
+import { useAccess } from "@/lib/access";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader } from "@/components/ui/Card";
@@ -30,6 +31,17 @@ export default function UsuariosPage() {
   const router = useRouter();
   const { users, roles, createUser, updateUser, deleteUser, toggleUserStatus, loading, error } = useData();
   const { notify } = useToast();
+  const access = useAccess();
+  const canCreate = access.hasPermission("/api/users", "POST");
+  const userActions = {
+    view:
+      access.hasPermission("/api/users/{id}", "GET") ||
+      access.hasPermission("/api/users/{id}/profile", "GET"),
+    manage: access.hasPermission("/api/users/{id}/detail-with-roles", "GET"),
+    edit: access.hasPermission("/api/users/{id}", "PUT"),
+    toggleStatus: access.hasPermission("/api/users/{id}/status", "PUT"),
+    delete: access.hasPermission("/api/users/{id}", "DELETE"),
+  };
 
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<StatusFilter>("todos");
@@ -52,11 +64,11 @@ export default function UsuariosPage() {
       <PageHeader
         title="Gestión de usuarios"
         description="Administra la plantilla de usuarios: fichajes, ediciones, suspensiones y bajas."
-        actions={
+        actions={canCreate ? (
           <Button leftIcon={<UserPlus className="size-4" />} onClick={() => form.open()}>
             Nuevo usuario
           </Button>
-        }
+        ) : undefined}
       />
 
       {error && (
@@ -98,6 +110,7 @@ export default function UsuariosPage() {
         <UsersTable
           users={filtered}
           roles={roles}
+          actions={userActions}
           onView={(u) => router.push(`/usuarios/${u.id}`)}
           onManage={(u) => router.push(`/usuarios/${u.id}`)}
           onEdit={(u) => form.open(u)}
@@ -106,24 +119,25 @@ export default function UsuariosPage() {
         />
       </Card>
 
-      <UserFormModal
-        open={form.isOpen}
-        onClose={form.close}
-        user={form.payload}
-        roles={roles}
-        onSubmit={async (input) => {
-          // Si el backend falla, el error se propaga y el modal lo muestra.
-          if (form.payload) {
-            await updateUser(form.payload.id, input);
-            notify(`Usuario “${input.name}” actualizado.`);
-          } else {
-            await createUser(input);
-            notify(`¡Fichaje confirmado! ${input.name} se unió al equipo.`);
-          }
-        }}
-      />
+      {(canCreate || userActions.edit) && (
+        <UserFormModal
+          open={form.isOpen}
+          onClose={form.close}
+          user={form.payload}
+          roles={roles}
+          onSubmit={async (input) => {
+            if (form.payload) {
+              await updateUser(form.payload.id, input);
+              notify(`Usuario “${input.name}” actualizado.`);
+            } else if (canCreate) {
+              await createUser(input);
+              notify(`¡Fichaje confirmado! ${input.name} se unió al equipo.`);
+            }
+          }}
+        />
+      )}
 
-      <ConfirmDialog
+      {userActions.toggleStatus && <ConfirmDialog
         open={confirmStatus.isOpen}
         onClose={confirmStatus.close}
         tone={confirmStatus.payload?.status === "activo" ? "danger" : "primary"}
@@ -150,9 +164,9 @@ export default function UsuariosPage() {
             notify(describeError(error, "No se pudo cambiar el estado del usuario."), "error");
           }
         }}
-      />
+      />}
 
-      <ConfirmDialog
+      {userActions.delete && <ConfirmDialog
         open={confirmDelete.isOpen}
         onClose={confirmDelete.close}
         title="Eliminar usuario"
@@ -173,7 +187,7 @@ export default function UsuariosPage() {
             notify(describeError(error, "No se pudo eliminar el usuario."), "error");
           }
         }}
-      />
+      />}
     </>
   );
 }

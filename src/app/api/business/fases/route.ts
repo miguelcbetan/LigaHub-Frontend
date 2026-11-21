@@ -3,11 +3,17 @@ import { proxyBusinessRequest } from "@/lib/server/business-proxy";
 const TIPOS_FASE = new Set(["GRUPOS", "FINAL"]);
 
 export function GET(request: Request) {
-  // Solo se reenvía el filtro `tipo` conocido; Business valida su valor.
-  const tipo = new URL(request.url).searchParams.get("tipo");
-  const query =
-    tipo && TIPOS_FASE.has(tipo) ? `?tipo=${encodeURIComponent(tipo)}` : "";
-  return proxyBusinessRequest(request, `/fases${query}`);
+  const params = new URL(request.url).searchParams;
+  const query = new URLSearchParams();
+  const tipo = params.get("tipo");
+  const torneoId = params.get("torneo_id");
+  if (tipo && TIPOS_FASE.has(tipo)) query.set("tipo", tipo);
+  if (torneoId) query.set("torneo_id", torneoId);
+  const search = query.toString();
+  return proxyBusinessRequest(
+    request,
+    `/fases${search ? `?${search}` : ""}`,
+  );
 }
 
 export function POST(request: Request) {

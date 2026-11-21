@@ -8,6 +8,7 @@ import { useData } from "@/context/DataContext";
 import { useToast } from "@/context/ToastContext";
 import { useDisclosure } from "@/hooks/useDisclosure";
 import { OPERATION_LABEL } from "@/lib/constants";
+import { useAccess } from "@/lib/access";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button, LinkButton } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -20,6 +21,12 @@ export default function UsuarioDetallePage() {
   const { id } = useParams<{ id: string }>();
   const { users, roles, modules, permissions, rolePermissions, updateUser, loading } = useData();
   const { notify } = useToast();
+  const access = useAccess();
+  const canView =
+    access.hasPermission("/api/users/{id}", "GET") ||
+    access.hasPermission("/api/users/{id}/profile", "GET") ||
+    access.hasPermission("/api/users/{id}/detail-with-roles", "GET");
+  const canEdit = access.hasPermission("/api/users/{id}", "PUT");
   const form = useDisclosure();
 
   const user = users.find((u) => u.id === id);
@@ -35,6 +42,20 @@ export default function UsuarioDetallePage() {
       }))
       .filter((x) => x.ops.length > 0);
   }, [user, modules, permissions, rolePermissions]);
+
+  if (!canView) {
+    return (
+      <EmptyState
+        title="Acceso no disponible"
+        description="Tu rol solo puede consultar el listado de usuarios."
+        action={
+          <LinkButton href="/usuarios" variant="secondary">
+            Volver al listado
+          </LinkButton>
+        }
+      />
+    );
+  }
 
   if (!user) {
     return loading ? (
@@ -63,11 +84,11 @@ export default function UsuarioDetallePage() {
       <PageHeader
         title="Detalle de usuario"
         description="Ficha técnica completa del integrante."
-        actions={
+        actions={canEdit ? (
           <Button leftIcon={<Pencil className="size-4" />} onClick={() => form.open()}>
             Editar perfil y roles
           </Button>
-        }
+        ) : undefined}
       />
 
       <div className="grid gap-6 lg:grid-cols-5">
@@ -101,16 +122,18 @@ export default function UsuarioDetallePage() {
         </Card>
       </div>
 
-      <UserFormModal
-        open={form.isOpen}
-        onClose={form.close}
-        user={user}
-        roles={roles}
-        onSubmit={async (input) => {
-          await updateUser(user.id, input);
-          notify("Ficha actualizada.");
-        }}
-      />
+      {canEdit && (
+        <UserFormModal
+          open={form.isOpen}
+          onClose={form.close}
+          user={user}
+          roles={roles}
+          onSubmit={async (input) => {
+            await updateUser(user.id, input);
+            notify("Ficha actualizada.");
+          }}
+        />
+      )}
     </>
   );
 }

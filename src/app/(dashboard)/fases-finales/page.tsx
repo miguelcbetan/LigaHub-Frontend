@@ -2,80 +2,150 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Medal, Plus, RefreshCw } from "lucide-react";
-import { FaseFinalFormModal } from "@/components/features/fases-finales/FaseFinalFormModal";
-import { FasesFinalesTable } from "@/components/features/fases-finales/FasesFinalesTable";
+import { FaseFormModal } from "@/components/features/fases/FaseFormModal";
+import { FasesTable } from "@/components/features/fases/FasesTable";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SearchInput } from "@/components/ui/SearchInput";
+import { Select } from "@/components/ui/Field";
 import { useToast } from "@/context/ToastContext";
 import { useDisclosure } from "@/hooks/useDisclosure";
 import {
-  businessFasesFinalesApi,
-  type FaseFinalDTO,
-} from "@/lib/api/business-fases-finales";
+  businessFasesApi,
+  type FaseDTO,
+  type FaseInput,
+  type TipoFase,
+} from "@/lib/api/business-fases";
+import { businessTorneosApi, type TorneoDTO } from "@/lib/api/business-torneos";
 import { useAccess } from "@/lib/access";
 
-export default function FasesFinalesPage() {
+const TIPOS: { value: TipoFase | ""; label: string }[] = [
+  { value: "", label: "Todos los tipos" },
+  { value: "GRUPOS", label: "Fase de grupos" },
+  { value: "FINAL", label: "Fase final" },
+];
+
+const TIPO_LABEL: Record<TipoFase, string> = {
+  GRUPOS: "Fase de grupos",
+  FINAL: "Fase final",
+};
+
+export default function FasesPage() {
   const access = useAccess();
   const canCreate = access.hasPermission("/fases", "POST");
   const canEdit = access.hasPermission("/fases/{id}", "PATCH");
   const canDelete = access.hasPermission("/fases/{id}", "DELETE");
-  const [fasesFinales, setFasesFinales] = useState<FaseFinalDTO[]>([]);
+  const canListTorneos = access.hasPermission("/torneos", "GET");
+  const [fases, setFases] = useState<FaseDTO[]>([]);
+  const [torneos, setTorneos] = useState<TorneoDTO[]>([]);
+  const [tipo, setTipo] = useState<TipoFase | "">("");
+  const [torneoId, setTorneoId] = useState("");
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const form = useDisclosure<FaseFinalDTO>();
-  const confirmDelete = useDisclosure<FaseFinalDTO>();
+  const [torneosError, setTorneosError] = useState("");
+  const form = useDisclosure<FaseDTO>();
+  const confirmDelete = useDisclosure<FaseDTO>();
   const { notify } = useToast();
 
-  const loadFasesFinales = useCallback(async () => {
+  const loadFases = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      setFasesFinales(await businessFasesFinalesApi.findAll());
+      setFases(
+        await businessFasesApi.findAll({
+          tipo: tipo || undefined,
+          torneo_id: torneoId || undefined,
+        }),
+      );
     } catch (caught) {
       setError(
         caught instanceof Error
           ? caught.message
-          : "No se pudieron cargar las fases finales.",
+          : "No se pudieron cargar las fases.",
       );
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [tipo, torneoId]);
 
   useEffect(() => {
-    void loadFasesFinales();
-  }, [loadFasesFinales]);
+    void loadFases();
+  }, [loadFases]);
+
+  useEffect(() => {
+    if (!canListTorneos) {
+      setTorneosError("No tienes permiso para consultar los torneos.");
+      return;
+    }
+    let active = true;
+    setTorneosError("");
+    void businessTorneosApi
+      .findAll()
+      .then((result) => {
+        if (active) setTorneos(result);
+      })
+      .catch((caught: unknown) => {
+        if (active) {
+          setTorneosError(
+            caught instanceof Error
+              ? caught.message
+              : "No se pudieron cargar los torneos.",
+          );
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [canListTorneos]);
+
+  const torneoNombres = useMemo(
+    () => new Map(torneos.map(({ id, nombre }) => [id, nombre])),
+    [torneos],
+  );
 
   const filtered = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    return fasesFinales.filter(
-      (faseFinal) =>
-        !normalizedQuery ||
-        faseFinal.torneo_id.toLowerCase().includes(normalizedQuery) ||
-        String(faseFinal.numero_orden).includes(normalizedQuery) ||
-        faseFinal.fecha_inicio.includes(normalizedQuery) ||
-        faseFinal.fecha_fin.includes(normalizedQuery) ||
-        faseFinal.estado.toLowerCase().includes(normalizedQuery) ||
-        faseFinal.modalidad.toLowerCase().includes(normalizedQuery),
-    );
-  }, [fasesFinales, query]);
+    return [...fases]
+      .sort(
+        (left, right) =>
+          (torneoNombres.get(left.torneo_id) ?? left.torneo_id).localeCompare(
+            torneoNombres.get(right.torneo_id) ?? right.torneo_id,
+          ) || left.numero_orden - right.numero_orden,
+      )
+      .filter(
+        (fase) =>
+          !normalizedQuery ||
+          (torneoNombres.get(fase.torneo_id) ?? fase.torneo_id)
+            .toLowerCase()
+            .includes(normalizedQuery) ||
+          String(fase.numero_orden).includes(normalizedQuery) ||
+          fase.fecha_inicio.includes(normalizedQuery) ||
+          fase.fecha_fin.includes(normalizedQuery) ||
+          fase.estado.toLowerCase().includes(normalizedQuery) ||
+          TIPO_LABEL[fase.tipo].toLowerCase().includes(normalizedQuery),
+      );
+  }, [fases, query, torneoNombres]);
+
+  const faseParaEliminar = confirmDelete.payload;
+  const torneoDeFase = faseParaEliminar
+    ? torneoNombres.get(faseParaEliminar.torneo_id) ?? faseParaEliminar.torneo_id
+    : "";
 
   return (
     <>
       <PageHeader
         eyebrow="Business"
-        title="Gestión de fases finales"
-        description="Crea, consulta, actualiza y elimina las fases finales de los torneos."
+        title="Gestión de fases de torneo"
+        description="Crea, consulta, actualiza y elimina las fases de grupos y finales."
         actions={
           <>
             <Button
               variant="secondary"
               leftIcon={<RefreshCw className="size-4" />}
-              onClick={() => void loadFasesFinales()}
+              onClick={() => void loadFases()}
             >
               Actualizar
             </Button>
@@ -84,7 +154,7 @@ export default function FasesFinalesPage() {
                 leftIcon={<Plus className="size-4" />}
                 onClick={() => form.open()}
               >
-                Nueva fase final
+                Nueva fase
               </Button>
             )}
           </>
@@ -99,54 +169,79 @@ export default function FasesFinalesPage() {
           {error}
         </div>
       )}
+      {torneosError && (
+        <div
+          role="alert"
+          className="mb-4 rounded-lg border border-co-red/30 bg-co-red/10 px-4 py-3 text-sm text-co-red"
+        >
+          {torneosError}
+        </div>
+      )}
 
       <Card className="overflow-hidden">
         <CardHeader
           icon={<Medal />}
-          title="Fases finales registradas"
+          title="Fases registradas"
           description={
-            loading
-              ? "Cargando fases finales…"
-              : `${filtered.length} de ${fasesFinales.length} fases finales`
+            loading ? "Cargando fases…" : `${filtered.length} de ${fases.length} fases`
           }
           action={
-            <SearchInput
-              value={query}
-              onChange={setQuery}
-              placeholder="Buscar fase final"
-            />
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+              <Select
+                label="Tipo de fase"
+                value={tipo}
+                onChange={(event) =>
+                  setTipo(event.target.value as TipoFase | "")
+                }
+                options={TIPOS}
+              />
+              <Select
+                label="Torneo"
+                value={torneoId}
+                onChange={(event) => setTorneoId(event.target.value)}
+                options={[
+                  { value: "", label: "Todos los torneos" },
+                  ...torneos.map(({ id, nombre }) => ({ value: id, label: nombre })),
+                ]}
+                disabled={!canListTorneos || !!torneosError}
+              />
+              <SearchInput
+                value={query}
+                onChange={setQuery}
+                placeholder="Buscar fase"
+              />
+            </div>
           }
         />
-        <FasesFinalesTable
-          fasesFinales={filtered}
+        <FasesTable
+          fases={filtered}
+          torneos={torneoNombres}
           canEdit={canEdit}
           canDelete={canDelete}
-          onEdit={(faseFinal) => form.open(faseFinal)}
-          onDelete={(faseFinal) => confirmDelete.open(faseFinal)}
+          onEdit={(fase) => form.open(fase)}
+          onDelete={(fase) => confirmDelete.open(fase)}
         />
       </Card>
 
       {(canCreate || canEdit) && (
-        <FaseFinalFormModal
+        <FaseFormModal
           open={form.isOpen}
           onClose={form.close}
-          faseFinal={form.payload}
-          onSubmit={async (input) => {
+          fase={form.payload}
+          canListTorneos={canListTorneos}
+          onSubmit={async (input: FaseInput) => {
             if (form.payload) {
-              const updated = await businessFasesFinalesApi.update(
+              const { tipo: _tipo, ...update } = input;
+              const updated = await businessFasesApi.update(
                 form.payload.id,
-                input,
+                update,
               );
-              setFasesFinales((current) =>
-                current.map((item) =>
-                  item.id === updated.id ? updated : item,
-                ),
-              );
-              notify(`Fase final ${updated.numero_orden} actualizada.`);
+              await loadFases();
+              notify(`Fase ${updated.numero_orden} actualizada.`);
             } else {
-              const created = await businessFasesFinalesApi.create(input);
-              setFasesFinales((current) => [created, ...current]);
-              notify(`Fase final ${created.numero_orden} creada.`);
+              const created = await businessFasesApi.create(input);
+              await loadFases();
+              notify(`${TIPO_LABEL[created.tipo]} ${created.numero_orden} creada.`);
             }
           }}
         />
@@ -156,33 +251,35 @@ export default function FasesFinalesPage() {
         <ConfirmDialog
           open={confirmDelete.isOpen}
           onClose={confirmDelete.close}
-          title="Eliminar fase final"
-          confirmLabel="Eliminar fase final"
+          title="Eliminar fase"
+          confirmLabel="Eliminar fase"
           message={
             <>
-              ¿Seguro que deseas eliminar la fase final{" "}
-              <strong>{confirmDelete.payload?.numero_orden}</strong> del torneo{" "}
-              <strong>{confirmDelete.payload?.torneo_id}</strong>? Esta acción
-              no se puede deshacer.
+              ¿Seguro que deseas eliminar{" "}
+              <strong>
+                {faseParaEliminar
+                  ? `${TIPO_LABEL[faseParaEliminar.tipo]} ${faseParaEliminar.numero_orden}`
+                  : ""}
+              </strong>{" "}
+              del torneo <strong>{torneoDeFase}</strong>? Si tiene partidos o
+              equipos asignados, Business impedirá la eliminación y mostrará
+              qué debe reasignarse o eliminarse. El torneo y las entidades
+              asociadas no se eliminan.
             </>
           }
           onConfirm={async () => {
-            const faseFinal = confirmDelete.payload;
-            if (!faseFinal) return;
+            if (!faseParaEliminar) return;
             try {
-              await businessFasesFinalesApi.remove(faseFinal.id);
-              setFasesFinales((current) =>
-                current.filter((item) => item.id !== faseFinal.id),
+              await businessFasesApi.remove(faseParaEliminar.id);
+              setFases((current) =>
+                current.filter((fase) => fase.id !== faseParaEliminar.id),
               );
-              notify(
-                `Fase final ${faseFinal.numero_orden} eliminada.`,
-                "error",
-              );
+              notify(`Fase ${faseParaEliminar.numero_orden} eliminada.`);
             } catch (caught) {
               notify(
                 caught instanceof Error
                   ? caught.message
-                  : "No se pudo eliminar la fase final.",
+                  : "No se pudo eliminar la fase.",
                 "error",
               );
             }
