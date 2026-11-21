@@ -52,4 +52,41 @@ describe("business inscription API", () => {
     );
     expect(onUnauthorized).toHaveBeenCalledOnce();
   });
+
+  it("queries registrations by tournament and team", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await businessInscripcionesApi.findAll({
+      torneo_id: "t-1",
+      equipo_id: "e-1",
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/business/inscripciones?torneo_id=t-1&equipo_id=e-1",
+      expect.objectContaining({ method: "GET", cache: "no-store" }),
+    );
+  });
+
+  it("preserves the server conflict message when an inscription cannot be withdrawn", async () => {
+    const message = "No se puede retirar la inscripción porque el torneo ya inició.";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ message }), {
+          status: 409,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+
+    await expect(businessInscripcionesApi.remove("i-1")).rejects.toEqual(
+      new BusinessInscripcionesApiError(409, message),
+    );
+  });
 });

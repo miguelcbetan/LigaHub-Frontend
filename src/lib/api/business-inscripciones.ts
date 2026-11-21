@@ -17,6 +17,11 @@ export interface InscripcionInput {
   torneo_id: string;
 }
 
+export interface InscripcionFilters {
+  torneo_id?: string;
+  equipo_id?: string;
+}
+
 export class BusinessInscripcionesApiError extends Error {
   constructor(
     readonly status: number,
@@ -79,8 +84,14 @@ async function request<T>(
 }
 
 export const businessInscripcionesApi = {
-  findAll() {
-    return request<InscripcionDTO[]>("/api/business/inscripciones");
+  findAll(filters: InscripcionFilters = {}) {
+    const params = new URLSearchParams();
+    if (filters.torneo_id) params.set("torneo_id", filters.torneo_id);
+    if (filters.equipo_id) params.set("equipo_id", filters.equipo_id);
+    const query = params.toString();
+    return request<InscripcionDTO[]>(
+      `/api/business/inscripciones${query ? `?${query}` : ""}`,
+    );
   },
 
   create(input: InscripcionInput) {

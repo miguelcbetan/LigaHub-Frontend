@@ -8,6 +8,8 @@ import { IconButton } from "@/components/ui/IconButton";
 
 interface InscripcionesTableProps {
   inscripciones: InscripcionDTO[];
+  equipoNombres: Map<string, string>;
+  torneoNombres: Map<string, string>;
   canEdit: boolean;
   canDelete: boolean;
   onEdit: (inscripcion: InscripcionDTO) => void;
@@ -31,6 +33,8 @@ const STATE_TONE: Record<
 
 export function InscripcionesTable({
   inscripciones,
+  equipoNombres,
+  torneoNombres,
   canEdit,
   canDelete,
   onEdit,
@@ -46,18 +50,18 @@ export function InscripcionesTable({
             <ClipboardList className="size-4" />
           </span>
           <span className="font-medium text-zinc-900 dark:text-zinc-100">
-            {inscripcion.equipo_id}
+            {equipoNombres.get(inscripcion.equipo_id) ?? inscripcion.equipo_id}
           </span>
         </div>
       ),
     },
     {
       key: "torneo_id",
-      header: "Torneo (UUID)",
+      header: "Torneo",
       hideOnMobile: true,
       cell: (inscripcion) => (
         <span className="text-zinc-600 dark:text-zinc-400">
-          {inscripcion.torneo_id}
+          {torneoNombres.get(inscripcion.torneo_id) ?? inscripcion.torneo_id}
         </span>
       ),
     },
@@ -98,7 +102,7 @@ export function InscripcionesTable({
                 )}
                 {canDelete && (
                   <IconButton
-                    label="Eliminar inscripción"
+                    label="Retirar inscripción"
                     tone="red"
                     onClick={() => onDelete(inscripcion)}
                   >

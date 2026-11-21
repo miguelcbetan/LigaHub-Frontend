@@ -151,11 +151,11 @@ El navegador no llama directamente a `ms_business`: pasa por las rutas proxy de 
 | Apartado | Ruta | Cliente | Recurso en `ms_business` |
 | --- | --- | --- | --- |
 | Torneos | `/torneos` | `business-torneos.ts` | `/torneos`, `/torneos/{id}/fases` |
-| Inscripciones | `/inscripciones` | `business-inscripciones.ts` | `/inscripciones` |
+| Inscripciones | `/inscripciones` | `business-inscripciones.ts` | `/inscripciones`, `/equipos`, `/equipos-deportes`, `/torneos` |
 | Escenarios de torneo | `/escenarios-torneo` | `business-escenarios-torneo.ts` | `/escenarios-torneo` |
 | Fases finales | `/fases-finales` | `business-fases-finales.ts` | `/fases?tipo=FINAL`, `/fases/{id}` |
 
-- En **inscripciones**, **escenarios de torneo** y **fases finales** el torneo se elige en una lista desplegable con los torneos existentes. `equipo_id` y `escenario_id` se escriben a mano como UUID, porque sus microservicios no forman parte de este alcance.
+- En **inscripciones**, **escenarios de torneo** y **fases finales** el torneo se elige en una lista desplegable con los torneos existentes. En inscripciones, los equipos se pueden seleccionar si están activos y asociados al deporte del torneo. `escenario_id` se escribe a mano como UUID, porque su microservicio no forma parte de este alcance.
 - En **fases finales** no se elige el tipo: al crear siempre se envía `tipo: "FINAL"`, y la lista solo trae fases finales.
 
 ### Permisos necesarios
@@ -172,6 +172,8 @@ El menú y los botones se muestran según los permisos del usuario. Aun así, la
 El detalle de un torneo muestra sus datos generales y consulta las fases con `GET /torneos/{id}/fases`; el rol que lo use necesita ese permiso.
 
 Los formularios con lista de torneos también necesitan `GET /torneos`; sin él, la lista muestra "No se pudieron cargar los torneos". El rol `ADMIN` ya tiene todos estos permisos.
+
+Para inscribir equipos, el rol también requiere `GET /equipos` y `GET /equipos-deportes`; `GET /inscripciones` permite comprobar si el equipo ya participa en el torneo y consultar registros con los filtros `torneo_id` y `equipo_id`.
 
 > **Requisitos de contraseña** (validados también en el cliente para evitar un `400`): entre 8 y 72 caracteres, sin espacios, con mayúscula, minúscula, número y uno de `@$!%*?&`.
 
