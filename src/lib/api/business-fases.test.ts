@@ -139,4 +139,18 @@ describe("business phases API", () => {
       expect.objectContaining({ method: "DELETE" }),
     );
   });
+
+  it("lists the matches of a final phase", async () => {
+    const partidos = [{ id: "p-1", fase_id: "f-1", fase_tipo: "FINAL" }];
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(partidos));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(businessFasesApi.findPartidos("f-1")).resolves.toEqual(
+      partidos,
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/business/fases/f-1/partidos",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
 });

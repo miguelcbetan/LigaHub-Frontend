@@ -26,6 +26,20 @@ describe("sports navigation", () => {
     expect(canAccessPath("/deportes", access)).toBe(false);
   });
 
+  it("shows Mis equipos to users that can become aficionados", () => {
+    const allowed = buildAccess([
+      { method: "GET", url: "/aficionados/me", model: "Aficionado" },
+    ]);
+    const denied = buildAccess([
+      { method: "GET", url: "/api/profile/me", model: "Profile" },
+    ]);
+
+    expect(etiquetas(allowed)).toContain("Mis equipos");
+    expect(canAccessPath("/mis-equipos", allowed)).toBe(true);
+    expect(etiquetas(denied)).not.toContain("Mis equipos");
+    expect(canAccessPath("/mis-equipos", denied)).toBe(false);
+  });
+
   it("shows habilidades only to roles that can list them", () => {
     const allowed = buildAccess([
       { method: "GET", url: "/habilidades", model: "Habilidad" },

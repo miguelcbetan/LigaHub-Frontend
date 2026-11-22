@@ -186,4 +186,41 @@ describe("FaseFormModal", () => {
       "Ya existe una fase con ese orden.",
     );
   });
+
+  it("only allows changing the state of a finished final phase", async () => {
+    render(
+      <FaseFormModal
+        open
+        onClose={vi.fn()}
+        onSubmit={vi.fn()}
+        canListTorneos
+        fase={{
+          id: "f-1",
+          tipo: "FINAL",
+          numero_orden: 2,
+          fecha_inicio: "2026-11-10",
+          fecha_fin: "2026-11-20",
+          estado: "FINALIZADA",
+          torneo_id: TORNEO_ID,
+          numero_partidos: 2,
+          modalidad: "IDA_Y_VUELTA",
+        }}
+      />,
+    );
+
+    expect(
+      await screen.findByText(
+        "Esta fase final ya finalizó: solo puedes cambiar su estado.",
+      ),
+    ).toBeTruthy();
+    expect(
+      (screen.getByLabelText("Número de partidos") as HTMLInputElement).disabled,
+    ).toBe(true);
+    expect(
+      (screen.getByLabelText("Fecha de inicio") as HTMLInputElement).disabled,
+    ).toBe(true);
+    expect(
+      (screen.getByLabelText("Estado") as HTMLSelectElement).disabled,
+    ).toBe(false);
+  });
 });

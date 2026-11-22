@@ -3,6 +3,7 @@ import {
   ClipboardList,
   Dumbbell,
   Grid3x3,
+  Heart,
   KeyRound,
   LayoutDashboard,
   MapPin,
@@ -128,6 +129,13 @@ export const NAV_SECTIONS: NavSection[] = [
         icon: CircleUserRound,
         // La pantalla consume /api/profile/me, no los perfiles ajenos.
         requires: (a) => a.hasUrl("/api/profile/me"),
+      },
+      {
+        href: "/mis-equipos",
+        label: "Mis equipos",
+        icon: Heart,
+        // HU-GE-05: el aficionado se resuelve por el token, como /api/profile/me.
+        requires: (a) => a.hasPermission("/aficionados/me", "GET"),
       },
     ],
   },

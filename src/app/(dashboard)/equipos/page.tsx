@@ -28,6 +28,7 @@ export default function EquiposPage() {
   const canViewPlantilla = access.hasPermission("/equipo-jugador", "GET");
   const canAsignarJugador = access.hasPermission("/equipo-jugador", "POST");
   const canRetirarJugador = access.hasPermission("/equipo-jugador/{id}/retiro", "PATCH");
+  const canViewAficionados = access.hasPermission("/equipos/{id}/aficionados", "GET");
   const [equipos, setEquipos] = useState<EquipoDTO[]>([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
@@ -196,6 +197,7 @@ export default function EquiposPage() {
           equipo={detail.payload}
           canAddDeporte={canAddDeporte}
           canRemoveDeporte={canRemoveDeporte}
+          canViewAficionados={canViewAficionados}
         />
       )}
 

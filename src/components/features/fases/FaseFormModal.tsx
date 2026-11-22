@@ -137,6 +137,9 @@ export function FaseFormModal({
     };
   }, [open, fase, canListTorneos]);
 
+  // Una fase final finalizada solo admite cambiar su estado (regla de Business).
+  const finalFinalizada = fase?.tipo === "FINAL" && fase.estado === "FINALIZADA";
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -238,6 +241,11 @@ export function FaseFormModal({
             {error}
           </div>
         )}
+        {finalFinalizada && (
+          <p className="rounded-lg border border-co-yellow/30 bg-co-yellow/10 px-3 py-2.5 text-sm text-zinc-700 dark:text-zinc-200">
+            Esta fase final ya finalizó: solo puedes cambiar su estado.
+          </p>
+        )}
         {torneosError && (
           <p role="alert" className="text-sm text-co-red">
             No se pudieron cargar los torneos: {torneosError}
@@ -260,6 +268,7 @@ export function FaseFormModal({
             onChange={(event) => setNumeroOrden(event.target.value)}
             required
             autoFocus
+            disabled={finalFinalizada}
           />
           <Select
             label="Estado"
@@ -273,6 +282,7 @@ export function FaseFormModal({
             value={fechaInicio}
             onChange={(event) => setFechaInicio(event.target.value)}
             required
+            disabled={finalFinalizada}
           />
           <Input
             label="Fecha de fin"
@@ -281,6 +291,7 @@ export function FaseFormModal({
             value={fechaFin}
             onChange={(event) => setFechaFin(event.target.value)}
             required
+            disabled={finalFinalizada}
           />
           {tipo === "GRUPOS" && (
             <>
@@ -313,6 +324,7 @@ export function FaseFormModal({
                 value={numeroPartidos}
                 onChange={(event) => setNumeroPartidos(event.target.value)}
                 required
+                disabled={finalFinalizada}
               />
               <Select
                 label="Modalidad"
@@ -321,6 +333,7 @@ export function FaseFormModal({
                   setModalidad(event.target.value as ModalidadFinal)
                 }
                 options={MODALIDADES}
+                disabled={finalFinalizada}
               />
             </>
           )}
@@ -340,7 +353,12 @@ export function FaseFormModal({
             value: torneo.id,
             label: `${torneo.nombre} — ${torneo.id}`,
           }))}
-          disabled={loadingTorneos || !!torneosError || torneos.length === 0}
+          disabled={
+            finalFinalizada ||
+            loadingTorneos ||
+            !!torneosError ||
+            torneos.length === 0
+          }
           required
         />
       </form>

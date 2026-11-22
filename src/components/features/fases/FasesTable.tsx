@@ -1,6 +1,6 @@
 "use client";
 
-import { Medal, Pencil, Trash2, Users } from "lucide-react";
+import { Medal, Pencil, Swords, Trash2, Users } from "lucide-react";
 import type { FaseDTO } from "@/lib/api/business-fases";
 import { Badge } from "@/components/ui/Badge";
 import { DataTable, type Column } from "@/components/ui/DataTable";
@@ -16,6 +16,9 @@ interface FasesTableProps {
   onEdit: (fase: FaseDTO) => void;
   onDelete: (fase: FaseDTO) => void;
   onEquipos?: (fase: FaseDTO) => void;
+  /** Permite consultar los partidos de las fases finales. */
+  canViewPartidos?: boolean;
+  onPartidos?: (fase: FaseDTO) => void;
 }
 
 const TIPO_LABEL: Record<FaseDTO["tipo"], string> = {
@@ -49,8 +52,11 @@ export function FasesTable({
   onEdit,
   onDelete,
   onEquipos,
+  canViewPartidos = false,
+  onPartidos,
 }: FasesTableProps) {
   const showEquipos = canManageEquipos && !!onEquipos;
+  const showPartidos = canViewPartidos && !!onPartidos;
   const columns: Column<FaseDTO>[] = [
     {
       key: "tipo",
@@ -117,7 +123,7 @@ export function FasesTable({
           <span className="text-zinc-500">—</span>
         ),
     },
-    ...(canEdit || canDelete || showEquipos
+    ...(canEdit || canDelete || showEquipos || showPartidos
       ? [
           {
             key: "actions",
@@ -132,6 +138,15 @@ export function FasesTable({
                     onClick={() => onEquipos?.(fase)}
                   >
                     <Users />
+                  </IconButton>
+                )}
+                {showPartidos && fase.tipo === "FINAL" && (
+                  <IconButton
+                    label="Partidos de la fase final"
+                    tone="blue"
+                    onClick={() => onPartidos?.(fase)}
+                  >
+                    <Swords />
                   </IconButton>
                 )}
                 {canEdit && (

@@ -44,6 +44,26 @@ export interface FaseInput {
 
 export type FaseUpdate = Partial<Omit<FaseInput, "tipo">>;
 
+export type EstadoPartido =
+  | "PROGRAMADO"
+  | "EN_JUEGO"
+  | "FINALIZADO"
+  | "CANCELADO";
+
+/** Partido de una fase; fase_tipo indica si pertenece a la fase final. */
+export interface PartidoFaseDTO {
+  id: string;
+  fecha_hora: string;
+  estado: EstadoPartido;
+  equipo_local_id: string;
+  equipo_visitante_id: string;
+  goles_local: number;
+  goles_visitante: number;
+  escenario_id: string;
+  fase_id: string | null;
+  fase_tipo: TipoFase | null;
+}
+
 export const businessFasesApi = {
   findAll(filters: FaseFilters = {}) {
     const params = new URLSearchParams();
@@ -74,6 +94,13 @@ export const businessFasesApi = {
     return request<void>(`/api/business/fases/${encodeURIComponent(id)}`, {
       method: "DELETE",
     });
+  },
+
+  /** Partidos registrados en la fase, ordenados por fecha. */
+  findPartidos(id: string) {
+    return request<PartidoFaseDTO[]>(
+      `/api/business/fases/${encodeURIComponent(id)}/partidos`,
+    );
   },
 
   /** Equipos que conforman un grupo (fase de tipo GRUPOS). */

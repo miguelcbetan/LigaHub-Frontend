@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Select } from "@/components/ui/Field";
+import { EquipoAficionadosSection } from "./EquipoAficionadosSection";
 
 interface EquipoDetailModalProps {
   open: boolean;
@@ -21,6 +22,7 @@ interface EquipoDetailModalProps {
   equipo?: EquipoDTO;
   canAddDeporte: boolean;
   canRemoveDeporte: boolean;
+  canViewAficionados?: boolean;
 }
 
 const errorMessage = (caught: unknown, fallback: string) =>
@@ -32,6 +34,7 @@ export function EquipoDetailModal({
   equipo,
   canAddDeporte,
   canRemoveDeporte,
+  canViewAficionados = false,
 }: EquipoDetailModalProps) {
   const { notify } = useToast();
   const [detail, setDetail] = useState<EquipoDTO | null>(null);
@@ -260,6 +263,8 @@ export function EquipoDetailModal({
                 {actionError || deportesError}
               </p>
             )}
+
+            {canViewAficionados && <EquipoAficionadosSection equipoId={detail.id} />}
           </div>
         ) : null}
       </Modal>
