@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Medal, Plus, RefreshCw } from "lucide-react";
 import { FaseFormModal } from "@/components/features/fases/FaseFormModal";
 import { FasesTable } from "@/components/features/fases/FasesTable";
+import { GrupoEquiposModal } from "@/components/features/fases/GrupoEquiposModal";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -38,6 +39,15 @@ export default function FasesPage() {
   const canEdit = access.hasPermission("/fases/{id}", "PATCH");
   const canDelete = access.hasPermission("/fases/{id}", "DELETE");
   const canListTorneos = access.hasPermission("/torneos", "GET");
+  const canViewEquiposGrupo = access.hasPermission("/fases/{id}/equipos", "GET");
+  const canAssignEquipos =
+    access.hasPermission("/fases/{id}/equipos", "POST") &&
+    access.hasPermission("/equipos", "GET") &&
+    access.hasPermission("/inscripciones", "GET");
+  const canRemoveEquipos = access.hasPermission(
+    "/fases/{id}/equipos/{id}",
+    "DELETE",
+  );
   const [fases, setFases] = useState<FaseDTO[]>([]);
   const [torneos, setTorneos] = useState<TorneoDTO[]>([]);
   const [tipo, setTipo] = useState<TipoFase | "">("");
@@ -48,6 +58,7 @@ export default function FasesPage() {
   const [torneosError, setTorneosError] = useState("");
   const form = useDisclosure<FaseDTO>();
   const confirmDelete = useDisclosure<FaseDTO>();
+  const equiposGrupo = useDisclosure<FaseDTO>();
   const { notify } = useToast();
 
   const loadFases = useCallback(async () => {
@@ -218,8 +229,10 @@ export default function FasesPage() {
           torneos={torneoNombres}
           canEdit={canEdit}
           canDelete={canDelete}
+          canManageEquipos={canViewEquiposGrupo}
           onEdit={(fase) => form.open(fase)}
           onDelete={(fase) => confirmDelete.open(fase)}
+          onEquipos={(fase) => equiposGrupo.open(fase)}
         />
       </Card>
 
@@ -247,6 +260,21 @@ export default function FasesPage() {
         />
       )}
 
+      {canViewEquiposGrupo && (
+        <GrupoEquiposModal
+          open={equiposGrupo.isOpen}
+          onClose={equiposGrupo.close}
+          grupo={equiposGrupo.payload}
+          torneoNombre={
+            equiposGrupo.payload
+              ? torneoNombres.get(equiposGrupo.payload.torneo_id)
+              : undefined
+          }
+          canAssign={canAssignEquipos}
+          canRemove={canRemoveEquipos}
+        />
+      )}
+
       {canDelete && (
         <ConfirmDialog
           open={confirmDelete.isOpen}
@@ -262,9 +290,9 @@ export default function FasesPage() {
                   : ""}
               </strong>{" "}
               del torneo <strong>{torneoDeFase}</strong>? Si tiene partidos o
-              equipos asignados, Business impedirá la eliminación y mostrará
-              qué debe reasignarse o eliminarse. El torneo y las entidades
-              asociadas no se eliminan.
+              equipos asignados, o si es un grupo que ya no está pendiente,
+              Business impedirá la eliminación y mostrará qué debe hacerse.
+              El torneo y los equipos registrados no se eliminan.
             </>
           }
           onConfirm={async () => {

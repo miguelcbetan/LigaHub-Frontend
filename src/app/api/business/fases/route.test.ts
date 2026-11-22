@@ -30,4 +30,19 @@ describe("business phases proxy", () => {
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe("http://localhost:3030/fases");
   });
+
+  it("forwards a numeric order filter", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response("[]", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await GET(
+      new Request("http://localhost/api/business/fases?torneo_id=t-1&numero_orden=2"),
+    );
+    await GET(new Request("http://localhost/api/business/fases?numero_orden=abc"));
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "http://localhost:3030/fases?torneo_id=t-1&numero_orden=2",
+    );
+    expect(fetchMock.mock.calls[1]?.[0]).toBe("http://localhost:3030/fases");
+  });
 });

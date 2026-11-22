@@ -9,6 +9,10 @@ export function GET(request: Request) {
   const torneoId = params.get("torneo_id");
   if (tipo && TIPOS_FASE.has(tipo)) query.set("tipo", tipo);
   if (torneoId) query.set("torneo_id", torneoId);
+  const numeroOrden = params.get("numero_orden");
+  if (numeroOrden && /^\d+$/.test(numeroOrden)) {
+    query.set("numero_orden", numeroOrden);
+  }
   const search = query.toString();
   return proxyBusinessRequest(
     request,

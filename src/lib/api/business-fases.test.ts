@@ -99,4 +99,44 @@ describe("business phases API", () => {
       new BusinessApiError(409, message),
     );
   });
+
+  it("filters the groups of a stage by order", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse([]));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await businessFasesApi.findAll({ torneo_id: "t-1", numero_orden: 1 });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/business/fases?torneo_id=t-1&numero_orden=1",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  it("lists, assigns and removes the teams of a group", async () => {
+    const fetchMock = vi.fn().mockImplementation(async () => jsonResponse([]));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await businessFasesApi.findEquiposGrupo("f-1");
+    await businessFasesApi.asignarEquiposGrupo("f-1", ["e-1", "e-2"]);
+    await businessFasesApi.quitarEquipoGrupo("f-1", "e-1");
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "/api/business/fases/f-1/equipos",
+      expect.objectContaining({ method: "GET" }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "/api/business/fases/f-1/equipos",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ equipo_ids: ["e-1", "e-2"] }),
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      "/api/business/fases/f-1/equipos/e-1",
+      expect.objectContaining({ method: "DELETE" }),
+    );
+  });
 });

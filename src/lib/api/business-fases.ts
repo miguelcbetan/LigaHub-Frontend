@@ -1,3 +1,4 @@
+import type { EquipoDTO } from "./business-equipos";
 import { request } from "./business-torneos";
 
 export type TipoFase = "GRUPOS" | "FINAL";
@@ -24,6 +25,8 @@ export interface FaseDTO {
 export interface FaseFilters {
   tipo?: TipoFase;
   torneo_id?: string;
+  /** Los grupos de una misma etapa comparten torneo y numero_orden. */
+  numero_orden?: number;
 }
 
 export interface FaseInput {
@@ -46,6 +49,9 @@ export const businessFasesApi = {
     const params = new URLSearchParams();
     if (filters.tipo) params.set("tipo", filters.tipo);
     if (filters.torneo_id) params.set("torneo_id", filters.torneo_id);
+    if (filters.numero_orden !== undefined) {
+      params.set("numero_orden", String(filters.numero_orden));
+    }
     const query = params.toString();
     return request<FaseDTO[]>(`/api/business/fases${query ? `?${query}` : ""}`);
   },
@@ -68,5 +74,27 @@ export const businessFasesApi = {
     return request<void>(`/api/business/fases/${encodeURIComponent(id)}`, {
       method: "DELETE",
     });
+  },
+
+  /** Equipos que conforman un grupo (fase de tipo GRUPOS). */
+  findEquiposGrupo(id: string) {
+    return request<EquipoDTO[]>(
+      `/api/business/fases/${encodeURIComponent(id)}/equipos`,
+    );
+  },
+
+  /** Asigna varios equipos a la vez; devuelve los equipos del grupo. */
+  asignarEquiposGrupo(id: string, equipoIds: string[]) {
+    return request<EquipoDTO[]>(
+      `/api/business/fases/${encodeURIComponent(id)}/equipos`,
+      { method: "POST", body: { equipo_ids: equipoIds } },
+    );
+  },
+
+  quitarEquipoGrupo(id: string, equipoId: string) {
+    return request<{ message: string }>(
+      `/api/business/fases/${encodeURIComponent(id)}/equipos/${encodeURIComponent(equipoId)}`,
+      { method: "DELETE" },
+    );
   },
 };

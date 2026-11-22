@@ -1,6 +1,6 @@
 "use client";
 
-import { Medal, Pencil, Trash2 } from "lucide-react";
+import { Medal, Pencil, Trash2, Users } from "lucide-react";
 import type { FaseDTO } from "@/lib/api/business-fases";
 import { Badge } from "@/components/ui/Badge";
 import { DataTable, type Column } from "@/components/ui/DataTable";
@@ -11,8 +11,11 @@ interface FasesTableProps {
   torneos: Map<string, string>;
   canEdit: boolean;
   canDelete: boolean;
+  /** Permite ver y gestionar los equipos de los grupos. */
+  canManageEquipos?: boolean;
   onEdit: (fase: FaseDTO) => void;
   onDelete: (fase: FaseDTO) => void;
+  onEquipos?: (fase: FaseDTO) => void;
 }
 
 const TIPO_LABEL: Record<FaseDTO["tipo"], string> = {
@@ -42,9 +45,12 @@ export function FasesTable({
   torneos,
   canEdit,
   canDelete,
+  canManageEquipos = false,
   onEdit,
   onDelete,
+  onEquipos,
 }: FasesTableProps) {
+  const showEquipos = canManageEquipos && !!onEquipos;
   const columns: Column<FaseDTO>[] = [
     {
       key: "tipo",
@@ -111,7 +117,7 @@ export function FasesTable({
           <span className="text-zinc-500">—</span>
         ),
     },
-    ...(canEdit || canDelete
+    ...(canEdit || canDelete || showEquipos
       ? [
           {
             key: "actions",
@@ -119,6 +125,15 @@ export function FasesTable({
             className: "text-right",
             cell: (fase) => (
               <div className="flex justify-end gap-0.5">
+                {showEquipos && fase.tipo === "GRUPOS" && (
+                  <IconButton
+                    label="Equipos del grupo"
+                    tone="blue"
+                    onClick={() => onEquipos?.(fase)}
+                  >
+                    <Users />
+                  </IconButton>
+                )}
                 {canEdit && (
                   <IconButton
                     label="Editar fase"
