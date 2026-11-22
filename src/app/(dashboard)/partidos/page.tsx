@@ -43,6 +43,12 @@ export default function PartidosPage() {
   const canCreate = access.hasPermission("/partidos", "POST");
   const canEdit = access.hasPermission("/partidos/{id}", "PATCH");
   const canDelete = access.hasPermission("/partidos/{id}", "DELETE");
+  // HU-GC-07: goles (anotaciones) del partido.
+  const permisosGoles = {
+    canCreate: access.hasPermission("/anotaciones", "POST"),
+    canEdit: access.hasPermission("/anotaciones/{id}", "PATCH"),
+    canDelete: access.hasPermission("/anotaciones/{id}", "DELETE"),
+  };
   const [partidos, setPartidos] = useState<PartidoDTO[]>([]);
   const [catalogos, setCatalogos] = useState<PartidoCatalogos>(CATALOGOS_VACIOS);
   const [torneoFiltro, setTorneoFiltro] = useState("");
@@ -181,6 +187,8 @@ export default function PartidosPage() {
         onClose={detalle.close}
         partido={detalle.payload}
         catalogos={catalogos}
+        goles={permisosGoles}
+        onPartidoChange={replace}
       />
 
       {(canCreate || canEdit) && (
@@ -191,9 +199,15 @@ export default function PartidosPage() {
           catalogos={catalogos}
           onSubmit={async (input) => {
             if (form.payload) {
+              const finaliza =
+                form.payload.estado === "EN_JUEGO" && input.estado === "FINALIZADO";
               const updated = await businessPartidosApi.update(form.payload.id, input);
               replace(updated);
-              notify(`Partido “${titulo(updated)}” actualizado.`);
+              notify(
+                finaliza
+                  ? `Partido “${titulo(updated)}” finalizado. Se enviará el resumen a quienes tienen boleta o apuesta.`
+                  : `Partido “${titulo(updated)}” actualizado.`,
+              );
             } else {
               const created = await businessPartidosApi.create(input);
               setPartidos((current) => [created, ...current]);

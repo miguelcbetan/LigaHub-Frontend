@@ -1,4 +1,5 @@
 import type { EstadoPartido, TipoFase } from "./business-fases";
+import type { AnotacionDTO } from "./business-anotaciones";
 import { request } from "./business-torneos";
 
 export type { EstadoPartido } from "./business-fases";
@@ -11,6 +12,7 @@ export interface PartidoDTO {
   equipo_visitante_id: string;
   equipo_local_nombre: string | null;
   equipo_visitante_nombre: string | null;
+  /** Calculados por Business a partir de las anotaciones (HU-GC-07). */
   goles_local: number;
   goles_visitante: number;
   /** null mientras el escenario esté por definir (HU-GC-06). */
@@ -21,7 +23,7 @@ export interface PartidoDTO {
   torneo_id: string | null;
   boletas?: { id: string }[];
   apuestas?: { id: string }[];
-  anotaciones?: { id: string; minuto: number; descripcion: string }[];
+  anotaciones?: AnotacionDTO[];
   pelota?: { id: string; marca: string; modelo: string } | null;
 }
 
@@ -34,8 +36,6 @@ export interface PartidoInput {
   /** null quita el escenario asignado. */
   escenario_id?: string | null;
   estado?: EstadoPartido;
-  goles_local?: number;
-  goles_visitante?: number;
 }
 
 export interface PartidoFilters {

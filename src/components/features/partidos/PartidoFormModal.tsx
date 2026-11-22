@@ -47,8 +47,6 @@ export function PartidoFormModal({
   const [escenarioId, setEscenarioId] = useState("");
   const [fechaHora, setFechaHora] = useState("");
   const [estado, setEstado] = useState<EstadoPartido>("PROGRAMADO");
-  const [golesLocal, setGolesLocal] = useState("0");
-  const [golesVisitante, setGolesVisitante] = useState("0");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -62,16 +60,22 @@ export function PartidoFormModal({
     setEscenarioId(partido?.escenario_id ?? "");
     setFechaHora(partido ? toDateTimeInput(partido.fecha_hora) : "");
     setEstado(partido?.estado ?? "PROGRAMADO");
-    setGolesLocal(String(partido?.goles_local ?? 0));
-    setGolesVisitante(String(partido?.goles_visitante ?? 0));
     setError("");
     setSubmitting(false);
     // Solo se reinicia al abrir; los catálogos pueden llegar después.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, partido]);
 
-  // Un partido en juego solo admite marcador y estado (regla de Business).
-  const soloMarcador = partido?.estado === "EN_JUEGO";
+  // Un partido en juego solo admite cambiar su estado (regla de Business).
+  // El marcador se calcula con los goles registrados en el detalle (HU-GC-07).
+  const soloEstado = partido?.estado === "EN_JUEGO";
+  // Al editar: un partido en juego no vuelve a programado y solo uno en juego
+  // puede finalizarse. Al registrar se admite cualquier estado.
+  const estados = ESTADOS.filter(({ value }) => {
+    if (!partido) return true;
+    if (soloEstado) return value !== "PROGRAMADO";
+    return value !== "FINALIZADO";
+  });
   const fase = catalogos.fases.find(({ id }) => id === faseId);
 
   const torneos = catalogos.torneos.filter(
@@ -119,21 +123,13 @@ export function PartidoFormModal({
       setError("Indica la fecha y hora del partido.");
       return;
     }
-    const goles = [Number(golesLocal), Number(golesVisitante)];
-    if (partido && goles.some((value) => !Number.isInteger(value) || value < 0)) {
-      setError("Los goles deben ser números enteros mayores o iguales a 0.");
-      return;
-    }
-
     const input: PartidoInput = {
       fecha_hora: fromDateTimeInput(fechaHora),
       equipo_local_id: localId,
       equipo_visitante_id: visitanteId,
       fase_id: faseId,
       escenario_id: escenarioId || null,
-      ...(partido
-        ? { estado, goles_local: goles[0], goles_visitante: goles[1] }
-        : {}),
+      estado,
     };
     if (!partido && !escenarioId) delete input.escenario_id;
 
@@ -164,8 +160,8 @@ export function PartidoFormModal({
       icon={partido ? <Pencil /> : <Plus />}
       title={partido ? "Editar partido" : "Registrar partido"}
       description={
-        soloMarcador
-          ? "El partido está en juego: solo puedes actualizar el marcador y el estado."
+        soloEstado
+          ? "El partido está en juego: solo puedes actualizar su estado. Los goles se registran en el detalle del partido."
           : "Selecciona la fase, los equipos habilitados y, si ya se conoce, el escenario."
       }
       footer={
@@ -202,7 +198,7 @@ export function PartidoFormModal({
               setEscenarioId("");
             }}
             options={torneos.map((torneo) => ({ value: torneo.id, label: torneo.nombre }))}
-            disabled={soloMarcador}
+            disabled={soloEstado}
             required
           />
           <Select
@@ -221,12 +217,12 @@ export function PartidoFormModal({
               setVisitanteId("");
             }}
             options={fases.map((item) => ({ value: item.id, label: faseLabel(item) }))}
-            disabled={!torneoId || soloMarcador}
+            disabled={!torneoId || soloEstado}
             required
           />
         </div>
 
-        {faseId && equipos.length < 2 && !soloMarcador && (
+        {faseId && equipos.length < 2 && !soloEstado && (
           <p role="status" className="text-sm text-zinc-500">
             Se necesitan al menos dos equipos activos con inscripción aceptada
             {fase?.tipo === "GRUPOS" ? " y asignados a este grupo" : ""}.
@@ -234,7 +230,7 @@ export function PartidoFormModal({
         )}
 
         <div className="grid gap-4 sm:grid-cols-2">
-          {soloMarcador ? (
+          {soloEstado ? (
             <>
               <Input label="Equipo local" value={nombreEquipo(localId)} readOnly />
               <Input label="Equipo visitante" value={nombreEquipo(visitanteId)} readOnly />
@@ -269,7 +265,7 @@ export function PartidoFormModal({
             type="datetime-local"
             value={fechaHora}
             onChange={(event) => setFechaHora(event.target.value)}
-            disabled={soloMarcador}
+            disabled={soloEstado}
             required
           />
           <Select
@@ -284,36 +280,33 @@ export function PartidoFormModal({
                 label: escenario.nombre,
               })),
             ]}
-            disabled={!torneoId || soloMarcador}
+            disabled={!torneoId || soloEstado}
           />
         </div>
 
-        {partido && (
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Select
-              label="Estado"
-              value={estado}
-              onChange={(event) => setEstado(event.target.value as EstadoPartido)}
-              options={ESTADOS.filter(
-                ({ value }) => !(soloMarcador && value === "PROGRAMADO"),
-              )}
-            />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Select
+            label="Estado"
+            hint={
+              soloEstado
+                ? "Al finalizarlo se envía el resumen a quienes tienen boleta o apuesta."
+                : partido
+                  ? "Para finalizarlo, primero pásalo a «En juego»."
+                  : undefined
+            }
+            value={estado}
+            onChange={(event) => setEstado(event.target.value as EstadoPartido)}
+            options={estados}
+          />
+          {partido && (
             <Input
-              label="Goles local"
-              type="number"
-              min={0}
-              value={golesLocal}
-              onChange={(event) => setGolesLocal(event.target.value)}
+              label="Marcador"
+              hint="Se calcula con los goles registrados en el detalle del partido."
+              value={`${partido.goles_local} - ${partido.goles_visitante}`}
+              readOnly
             />
-            <Input
-              label="Goles visitante"
-              type="number"
-              min={0}
-              value={golesVisitante}
-              onChange={(event) => setGolesVisitante(event.target.value)}
-            />
-          </div>
-        )}
+          )}
+        </div>
       </form>
     </Modal>
   );

@@ -9,6 +9,8 @@ import {
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { PartidoGolesSection } from "@/components/features/anotaciones/PartidoGolesSection";
+import { marcadorDe } from "@/components/features/anotaciones/anotacion-utils";
 import {
   ESTADO_LABEL,
   ESTADO_TONE,
@@ -17,19 +19,33 @@ import {
   type PartidoCatalogos,
 } from "./partido-utils";
 
+interface PermisosGoles {
+  canCreate: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+}
+
 interface PartidoDetalleModalProps {
   open: boolean;
   onClose: () => void;
   partido?: PartidoDTO;
   catalogos: PartidoCatalogos;
+  /** HU-GC-07: permisos sobre los goles (anotaciones) del partido. */
+  goles?: PermisosGoles;
+  /** Se llama cuando cambian los goles, con el marcador ya recalculado. */
+  onPartidoChange?: (partido: PartidoDTO) => void;
 }
 
-/** Información detallada del partido (GET /partidos/:id). */
+const SIN_PERMISOS: PermisosGoles = { canCreate: false, canEdit: false, canDelete: false };
+
+/** Información detallada del partido (GET /partidos/:id) y sus goles. */
 export function PartidoDetalleModal({
   open,
   onClose,
   partido,
   catalogos,
+  goles = SIN_PERMISOS,
+  onPartidoChange,
 }: PartidoDetalleModalProps) {
   const [detalle, setDetalle] = useState<PartidoDTO | undefined>(partido);
   const [error, setError] = useState("");
@@ -73,7 +89,6 @@ export function PartidoDetalleModal({
     ["Estado", <Badge key="estado" tone={ESTADO_TONE[item.estado]}>{ESTADO_LABEL[item.estado]}</Badge>],
     ["Boletas vendidas", item.boletas?.length ?? 0],
     ["Apuestas", item.apuestas?.length ?? 0],
-    ["Anotaciones", item.anotaciones?.length ?? 0],
     ["Pelota", item.pelota ? `${item.pelota.marca} ${item.pelota.modelo}` : "Sin asignar"],
   ];
 
@@ -81,6 +96,7 @@ export function PartidoDetalleModal({
     <Modal
       open={open}
       onClose={onClose}
+      size="lg"
       icon={<Eye />}
       title={`${item.equipo_local_nombre ?? "Local"} vs ${item.equipo_visitante_nombre ?? "Visitante"}`}
       description="Información detallada del partido."
@@ -103,6 +119,15 @@ export function PartidoDetalleModal({
           </div>
         ))}
       </dl>
+      <PartidoGolesSection
+        partido={item}
+        {...goles}
+        onChange={(anotaciones) => {
+          const actualizado = { ...item, anotaciones, ...marcadorDe(item, anotaciones) };
+          setDetalle(actualizado);
+          onPartidoChange?.(actualizado);
+        }}
+      />
     </Modal>
   );
 }

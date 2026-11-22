@@ -85,7 +85,16 @@ describe("PartidoFormModal", () => {
       equipo_local_id: "e-1",
       equipo_visitante_id: "e-2",
       fase_id: "f-1",
+      estado: "PROGRAMADO",
     });
+  });
+
+  it("al registrar permite cualquier estado y no pide marcador", () => {
+    renderModal();
+
+    expect(optionLabels("Estado")).toHaveLength(4);
+    expect(screen.queryByLabelText("Goles local")).toBeNull();
+    expect(screen.queryByLabelText("Marcador")).toBeNull();
   });
 
   it("exige fecha antes de enviar", async () => {
@@ -101,35 +110,47 @@ describe("PartidoFormModal", () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  it("en un partido en juego solo deja editar marcador y estado", async () => {
-    const partido: PartidoDTO = {
-      id: "p-1",
-      fecha_hora: "2026-12-06T01:00:00.000Z",
-      estado: "EN_JUEGO",
-      equipo_local_id: "e-1",
-      equipo_visitante_id: "e-2",
-      equipo_local_nombre: "Once Caldas",
-      equipo_visitante_nombre: "Manizales FC",
-      goles_local: 0,
-      goles_visitante: 0,
-      escenario_id: "s-1",
-      escenario_nombre: "Estadio Palogrande",
-      fase_id: "f-1",
-      fase_tipo: "GRUPOS",
-      torneo_id: "t-1",
-    };
-    const onSubmit = renderModal({ partido });
+  const partidoBase: PartidoDTO = {
+    id: "p-1",
+    fecha_hora: "2026-12-06T01:00:00.000Z",
+    estado: "EN_JUEGO",
+    equipo_local_id: "e-1",
+    equipo_visitante_id: "e-2",
+    equipo_local_nombre: "Once Caldas",
+    equipo_visitante_nombre: "Manizales FC",
+    goles_local: 2,
+    goles_visitante: 1,
+    escenario_id: "s-1",
+    escenario_nombre: "Estadio Palogrande",
+    fase_id: "f-1",
+    fase_tipo: "GRUPOS",
+    torneo_id: "t-1",
+  };
+
+  it("en un partido en juego solo deja cambiar el estado y muestra el marcador calculado", async () => {
+    const onSubmit = renderModal({ partido: partidoBase });
 
     expect((select("Torneo") as HTMLSelectElement).disabled).toBe(true);
     expect((screen.getByLabelText("Fecha y hora") as HTMLInputElement).disabled).toBe(true);
     expect(optionLabels("Estado")).not.toContain("Programado");
+    expect((screen.getByLabelText("Marcador") as HTMLInputElement).value).toBe("2 - 1");
+    expect((screen.getByLabelText("Marcador") as HTMLInputElement).readOnly).toBe(true);
 
-    fireEvent.change(screen.getByLabelText("Goles local"), { target: { value: "2" } });
+    fireEvent.change(select("Estado"), { target: { value: "FINALIZADO" } });
     fireEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce());
-    expect(onSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({ goles_local: 2, estado: "EN_JUEGO", escenario_id: "s-1" }),
+    const input = onSubmit.mock.calls[0][0];
+    expect(input).toEqual(
+      expect.objectContaining({ estado: "FINALIZADO", escenario_id: "s-1" }),
     );
+    expect(input).not.toHaveProperty("goles_local");
+  });
+
+  it("un partido programado no ofrece pasar directo a finalizado", () => {
+    renderModal({ partido: { ...partidoBase, estado: "PROGRAMADO" } });
+
+    expect(optionLabels("Estado")).not.toContain("Finalizado");
+    expect(optionLabels("Estado")).toContain("En juego");
   });
 });
