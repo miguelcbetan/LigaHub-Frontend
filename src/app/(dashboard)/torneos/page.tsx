@@ -21,6 +21,10 @@ export default function TorneosPage() {
   const canCreate = access.hasPermission("/torneos", "POST");
   const canView = access.hasPermission("/torneos/{id}", "GET");
   const canViewFases = access.hasPermission("/torneos/{id}/fases", "GET");
+  const canViewDesarrollo = access.hasPermission(
+    "/torneos/{id}/desarrollo",
+    "GET",
+  );
   const canEdit = access.hasPermission("/torneos/{id}", "PATCH");
   const canDelete = access.hasPermission("/torneos/{id}", "DELETE");
   const canListDeportes = access.hasPermission("/deportes", "GET");
@@ -182,6 +186,7 @@ export default function TorneosPage() {
           torneos={filtered}
           deportes={deporteNombres}
           canView={canView || canViewFases}
+          canViewDesarrollo={canViewDesarrollo}
           canEdit={canEdit}
           canDelete={canDelete}
           onView={(torneo) => detail.open(torneo)}

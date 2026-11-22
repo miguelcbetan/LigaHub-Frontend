@@ -1,8 +1,9 @@
 "use client";
 
-import { Eye, Pencil, Power, PowerOff, Trash2, Trophy } from "lucide-react";
+import { ChartNetwork, Eye, Pencil, Power, PowerOff, Trash2, Trophy } from "lucide-react";
 import type { TorneoDTO } from "@/lib/api/business-torneos";
 import { Badge } from "@/components/ui/Badge";
+import { LinkButton } from "@/components/ui/Button";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import { IconButton } from "@/components/ui/IconButton";
 
@@ -10,6 +11,8 @@ interface TorneosTableProps {
   torneos: TorneoDTO[];
   deportes: Map<string, string>;
   canView: boolean;
+  /** HU-GC-08: acceso a la vista de desarrollo del torneo. */
+  canViewDesarrollo?: boolean;
   canEdit: boolean;
   canDelete: boolean;
   onView: (torneo: TorneoDTO) => void;
@@ -34,6 +37,7 @@ export function TorneosTable({
   torneos,
   deportes,
   canView,
+  canViewDesarrollo = false,
   canEdit,
   canDelete,
   onView,
@@ -98,14 +102,26 @@ export function TorneosTable({
         </Badge>
       ),
     },
-    ...(canView || canEdit || canDelete
+    ...(canView || canViewDesarrollo || canEdit || canDelete
       ? [
           {
             key: "actions",
             header: <span className="sr-only">Acciones</span>,
             className: "text-right",
             cell: (torneo) => (
-              <div className="flex justify-end gap-0.5">
+              <div className="flex items-center justify-end gap-0.5">
+                {canViewDesarrollo && (
+                  <LinkButton
+                    href={`/torneos/${encodeURIComponent(torneo.id)}`}
+                    variant="accent"
+                    size="sm"
+                    className="mr-1.5"
+                    leftIcon={<ChartNetwork className="size-3.5" />}
+                    aria-label={`Ver desarrollo de ${torneo.nombre}`}
+                  >
+                    Desarrollo
+                  </LinkButton>
+                )}
                 {canView && (
                   <IconButton
                     label="Ver detalle del torneo"

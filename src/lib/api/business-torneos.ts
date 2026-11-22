@@ -30,6 +30,105 @@ export interface TorneoFaseDTO {
   fecha_fin?: string;
 }
 
+// HU-GC-08: desarrollo del torneo (GET /torneos/:id/desarrollo).
+export type EstadoFaseDesarrollo = "PENDIENTE" | "EN_CURSO" | "FINALIZADA";
+export type EstadoPartidoDesarrollo =
+  | "PROGRAMADO"
+  | "EN_JUEGO"
+  | "FINALIZADO"
+  | "CANCELADO";
+
+export interface EquipoResumenDTO {
+  id: string;
+  nombre: string;
+}
+
+export interface AnotacionDesarrolloDTO {
+  id: string;
+  minuto: number;
+  descripcion: string | null;
+  jugador_id: string;
+  jugador_user_id: number | null;
+  equipo_id: string;
+}
+
+export interface PartidoDesarrolloDTO {
+  id: string;
+  fecha_hora: string;
+  estado: EstadoPartidoDesarrollo;
+  equipo_local: EquipoResumenDTO;
+  equipo_visitante: EquipoResumenDTO;
+  escenario_nombre: string | null;
+  goles_local: number;
+  goles_visitante: number;
+  con_resultado: boolean;
+  anotaciones: AnotacionDesarrolloDTO[];
+}
+
+export interface PosicionDTO {
+  posicion: number;
+  equipo: EquipoResumenDTO;
+  pj: number;
+  pg: number;
+  pe: number;
+  pp: number;
+  gf: number;
+  gc: number;
+  dg: number;
+  pts: number;
+}
+
+export interface FaseResumenDTO {
+  id: string;
+  numero_orden: number;
+  fecha_inicio: string;
+  fecha_fin: string;
+  estado: EstadoFaseDesarrollo;
+}
+
+export interface GrupoDesarrolloDTO {
+  fase: FaseResumenDTO;
+  nombre: string;
+  cupo_equipos: number | null;
+  equipos: EquipoResumenDTO[];
+  tabla_posiciones: PosicionDTO[];
+  partidos: PartidoDesarrolloDTO[];
+}
+
+export interface LlaveDTO {
+  equipo_a: EquipoResumenDTO;
+  equipo_b: EquipoResumenDTO;
+  goles_a: number;
+  goles_b: number;
+  ganador_id: string | null;
+  partidos: PartidoDesarrolloDTO[];
+}
+
+export interface FinalDesarrolloDTO {
+  fase: FaseResumenDTO;
+  modalidad: "PARTIDO_UNICO" | "IDA_Y_VUELTA" | null;
+  numero_partidos: number | null;
+  llaves: LlaveDTO[];
+}
+
+export interface EtapaDesarrolloDTO {
+  numero_orden: number;
+  tipo: "GRUPOS" | "FINAL";
+  grupos: GrupoDesarrolloDTO[];
+  finales: FinalDesarrolloDTO[];
+}
+
+export interface TorneoDesarrolloDTO {
+  torneo: TorneoDTO & { deporte_nombre: string | null };
+  resumen: {
+    total_fases: number;
+    total_partidos: number;
+    partidos_con_resultado: number;
+    partidos_pendientes: number;
+  };
+  etapas: EtapaDesarrolloDTO[];
+}
+
 export class BusinessApiError extends Error {
   constructor(
     readonly status: number,
@@ -116,6 +215,12 @@ export const businessTorneosApi = {
   findFases(id: string) {
     return request<TorneoFaseDTO[]>(
       `/api/business/torneos/${encodeURIComponent(id)}/fases`,
+    );
+  },
+
+  findDesarrollo(id: string) {
+    return request<TorneoDesarrolloDTO>(
+      `/api/business/torneos/${encodeURIComponent(id)}/desarrollo`,
     );
   },
 

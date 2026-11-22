@@ -105,4 +105,23 @@ describe("business tournament API", () => {
       ),
     );
   });
+
+  it("loads the development of a tournament through its proxy route", async () => {
+    const desarrollo = { torneo: { id: "t 1" }, resumen: {}, etapas: [] };
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(desarrollo), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(businessTorneosApi.findDesarrollo("t 1")).resolves.toEqual(
+      desarrollo,
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/business/torneos/t%201/desarrollo",
+      expect.objectContaining({ method: "GET", cache: "no-store" }),
+    );
+  });
 });
