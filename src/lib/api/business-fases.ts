@@ -59,7 +59,8 @@ export interface PartidoFaseDTO {
   equipo_visitante_id: string;
   goles_local: number;
   goles_visitante: number;
-  escenario_id: string;
+  /** null mientras el escenario esté por definir. */
+  escenario_id: string | null;
   fase_id: string | null;
   fase_tipo: TipoFase | null;
 }
