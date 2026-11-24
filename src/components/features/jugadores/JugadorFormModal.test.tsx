@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { JugadorFormModal } from "./JugadorFormModal";
 
 const usuarios = [
@@ -78,6 +78,86 @@ describe("JugadorFormModal", () => {
     expect(screen.getByText("La fecha de nacimiento no puede ser futura.")).toBeTruthy();
     expect(screen.getByText("La nacionalidad es obligatoria.")).toBeTruthy();
     expect(onCreate).not.toHaveBeenCalled();
+  });
+
+  describe("minimum age of 14 years", () => {
+    const menor = "El jugador debe tener al menos 14 años.";
+
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date(2026, 5, 15, 12));
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    const registrar = (fecha: string) => {
+      fireEvent.change(screen.getByRole("combobox", { name: "Usuario *" }), {
+        target: { value: "7" },
+      });
+      fireEvent.change(screen.getByLabelText("Fecha de nacimiento *"), {
+        target: { value: fecha },
+      });
+      fireEvent.change(screen.getByLabelText("Nacionalidad *"), {
+        target: { value: "Colombiana" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Registrar jugador" }));
+    };
+
+    it("rejects registering a player one day short of 14 years", () => {
+      const { onCreate } = renderForm();
+
+      expect(screen.getByLabelText("Fecha de nacimiento *").getAttribute("max")).toBe("2012-06-15");
+      registrar("2012-06-16");
+
+      expect(screen.getByText(menor)).toBeTruthy();
+      expect(onCreate).not.toHaveBeenCalled();
+    });
+
+    it("registers a player who turns 14 today", async () => {
+      const { onCreate } = renderForm();
+
+      registrar("2012-06-15");
+
+      await waitFor(() =>
+        expect(onCreate).toHaveBeenCalledWith({
+          user_id: 7,
+          fecha_nacimiento: "2012-06-15",
+          nacionalidad: "Colombiana",
+        }),
+      );
+    });
+
+    it("lets an existing under-14 player be edited when the birth date is unchanged", async () => {
+      const { onUpdate } = renderForm({
+        jugador: { ...existente, fecha_nacimiento: "2015-03-01" },
+      });
+
+      fireEvent.change(screen.getByLabelText("Nacionalidad *"), {
+        target: { value: "Chilena" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+      await waitFor(() =>
+        expect(onUpdate).toHaveBeenCalledWith({
+          fecha_nacimiento: "2015-03-01",
+          nacionalidad: "Chilena",
+        }),
+      );
+    });
+
+    it("rejects changing the birth date to one under 14 years when editing", () => {
+      const { onUpdate } = renderForm({ jugador: existente });
+
+      fireEvent.change(screen.getByLabelText("Fecha de nacimiento *"), {
+        target: { value: "2013-01-01" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+      expect(screen.getByText(menor)).toBeTruthy();
+      expect(onUpdate).not.toHaveBeenCalled();
+    });
   });
 
   it("edits sports data without allowing the user to change", async () => {

@@ -29,6 +29,13 @@ const hoyIso = () => {
     .slice(0, 10);
 };
 
+const EDAD_MINIMA = 14;
+
+const fechaMaximaNacimiento = () => {
+  const hoy = hoyIso();
+  return `${Number(hoy.slice(0, 4)) - EDAD_MINIMA}${hoy.slice(4)}`;
+};
+
 interface FieldErrors {
   usuario?: string;
   fecha?: string;
@@ -80,6 +87,9 @@ export function JugadorFormModal({
     }
     if (!fecha) next.fecha = "La fecha de nacimiento es obligatoria.";
     else if (fecha > hoyIso()) next.fecha = "La fecha de nacimiento no puede ser futura.";
+    else if (fecha !== jugador?.fecha_nacimiento && fecha > fechaMaximaNacimiento()) {
+      next.fecha = `El jugador debe tener al menos ${EDAD_MINIMA} años.`;
+    }
     const valor = nacionalidad.trim();
     if (!valor) next.nacionalidad = "La nacionalidad es obligatoria.";
     else if (valor.length > NACIONALIDAD_MAX) {
@@ -171,7 +181,7 @@ export function JugadorFormModal({
           <Input
             label="Fecha de nacimiento *"
             type="date"
-            max={hoyIso()}
+            max={jugador ? hoyIso() : fechaMaximaNacimiento()}
             value={fecha}
             onChange={(event) => setFecha(event.target.value)}
             error={errors.fecha}

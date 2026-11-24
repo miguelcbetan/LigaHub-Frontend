@@ -239,9 +239,10 @@ export default function JugadoresPage() {
             <>
               ¿Seguro que deseas eliminar al jugador{" "}
               <strong>{confirmDelete.payload ? nombreDe(confirmDelete.payload) : ""}</strong>? Se
-              elimina solo su registro de jugador; su usuario de la plataforma se conserva. Si
-              tiene anotaciones, posiciones, historial de equipos o habilidades no se eliminará;
-              desactívalo en su lugar.
+              eliminarán su registro de jugador, su historial de equipos y sus asignaciones de
+              habilidades; su usuario de la plataforma y las habilidades se conservan. Si tiene un
+              contrato activo con un equipo, anotaciones o posiciones registradas no se eliminará;
+              retíralo del equipo o desactívalo en su lugar.
             </>
           }
           onConfirm={async () => {
